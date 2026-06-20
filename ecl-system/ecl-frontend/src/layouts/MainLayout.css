@@ -105,6 +105,7 @@
 
 /* ─── Main Layout ─── */
 .main-layout {
+  position: relative;
   display: flex;
   flex: 1;
   overflow: hidden;
