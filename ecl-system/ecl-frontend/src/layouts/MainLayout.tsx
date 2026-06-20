@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import './MainLayout.css';
+import '../components/StatusTag.css';
 
 export interface SchemeContext {
   schemeId: string;
