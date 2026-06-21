@@ -151,7 +151,7 @@ const PdConfig: React.FC = () => {
     }
 
     if (editingScenario) {
-      await pdApi.updateScenario(editingScenario.scenarioId, values);
+      await pdApi.updateScenario(editingScenario.scenarioId, { ...values, schemeId: selectedSchemeId });
       message.success('情景更新成功');
     } else {
       await pdApi.createScenario({ ...values, schemeId: selectedSchemeId });

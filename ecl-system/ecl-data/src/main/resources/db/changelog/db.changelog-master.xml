@@ -12,4 +12,5 @@
     <include file="007-create-overlay.sql" relativeToChangelogFile="true"/>
     <include file="008-create-ecl-job.sql" relativeToChangelogFile="true"/>
     <include file="009-create-ecl-calc-detail.sql" relativeToChangelogFile="true"/>
+    <include file="010-fix-json-nullable.sql" relativeToChangelogFile="true"/>
 </databaseChangeLog>

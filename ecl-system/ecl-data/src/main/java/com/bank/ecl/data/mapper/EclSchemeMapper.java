@@ -9,6 +9,6 @@ public interface EclSchemeMapper extends BaseMapper<EclSchemeEntity> {
     @Select("SELECT * FROM tbl_ecl_scheme WHERE status = 'EFFECTIVE' ORDER BY effective_at DESC LIMIT 1")
     EclSchemeEntity selectEffective();
 
-    @Select("SELECT COALESCE(MAX(CAST(SUBSTRING(scheme_code, 5) AS INTEGER)), 0) FROM tbl_ecl_scheme")
+    @Select("SELECT COALESCE(MAX(CAST(SUBSTRING(scheme_code, 5) AS SIGNED)), 0) FROM tbl_ecl_scheme")
     int selectMaxSchemeSeq();
 }

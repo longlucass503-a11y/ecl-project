@@ -1,13 +1,9 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:ecl;DB_CLOSE_DELAY=-1;MODE=MySQL
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+    url: jdbc:mysql://localhost:3306/ecl?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: root
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.xml
 logging:
@@ -16,4 +12,4 @@ logging:
     org.mybatis: DEBUG
 
 ecl:
-  db-type: H2
+  db-type: MYSQL

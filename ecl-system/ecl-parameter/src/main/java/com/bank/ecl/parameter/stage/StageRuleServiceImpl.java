@@ -81,7 +81,7 @@ public class StageRuleServiceImpl implements StageRuleService {
     @Transactional(rollbackFor = Exception.class)
     public StageRuleVO createStageRule(StageRuleCreateReq req) {
         checkSchemeDraft(req.getSchemeId());
-        String conditions = firstPresent(req.getConditions(), req.getJsonCondition());
+        String conditions = firstPresent(req.getJsonCondition(), req.getConditions());
         validateConditions(conditions);
 
         StageRuleEntity entity = new StageRuleEntity();
@@ -106,7 +106,7 @@ public class StageRuleServiceImpl implements StageRuleService {
             throw new EclException(ErrorCode.ECL_006, "阶段规则不存在: " + ruleId);
         }
         checkSchemeDraft(entity.getSchemeId());
-        String conditions = firstPresent(req.getConditions(), req.getJsonCondition());
+        String conditions = firstPresent(req.getJsonCondition(), req.getConditions());
         validateConditions(conditions);
 
         entity.setRuleType(req.getRuleType());
@@ -221,7 +221,7 @@ public class StageRuleServiceImpl implements StageRuleService {
     }
 
     private String firstPresent(String primary, String fallback) {
-        return primary != null ? primary : fallback;
+        return primary != null && !primary.isBlank() ? primary : fallback;
     }
 
     private Integer firstPresent(Integer primary, Integer fallback) {
