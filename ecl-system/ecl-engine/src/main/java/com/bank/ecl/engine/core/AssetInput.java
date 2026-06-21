@@ -101,6 +101,37 @@ public class AssetInput {
     /** 异常码（ECL_001 等，查不到即阻断） */
     private String pdException;
 
+    // ========== 6.4 EAD 计算引擎入参 ==========
+
+    /** 未偿余额 */
+    private java.math.BigDecimal outstandingBalance;
+
+    /** 应计利息 */
+    private java.math.BigDecimal accruedInterest;
+
+    /** 授信总额 */
+    private java.math.BigDecimal totalLimit;
+
+    /** 承诺类型 */
+    private String commitmentType;
+
+    /** 承诺期限（天） */
+    private Integer commitmentDays;
+
+    // ========== 6.4 EAD 计算引擎输出 ==========
+
+    /** 表内 EAD */
+    private double onBsEad;
+
+    /** 表外 EAD */
+    private double offBsEad;
+
+    /** 总 EAD */
+    private double totalEad;
+
+    /** 异常码 */
+    private String eadException;
+
     // ========== 预留字段（后续引擎使用）==========
-    // totalEad, lgdValue, eclValue ...
+    // lgdValue, eclValue ...
 }
