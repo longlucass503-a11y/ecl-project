@@ -4,10 +4,10 @@ spring:
   profiles:
     active: dev
   datasource:
-    url: jdbc:h2:mem:ecl;DB_CLOSE_DELAY=-1;MODE=MySQL
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:mysql://localhost:3306/ecl?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: root
   h2:
     console:
       enabled: true
@@ -22,4 +22,4 @@ logging:
     org.mybatis: DEBUG
 # DB type for MyBatis-Plus pagination: H2 (dev/test) / MYSQL (production)
 ecl:
-  db-type: H2
+  db-type: MYSQL

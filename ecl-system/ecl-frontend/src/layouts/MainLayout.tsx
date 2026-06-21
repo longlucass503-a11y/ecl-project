@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   AppstoreOutlined,
@@ -62,6 +62,13 @@ const MainLayout: React.FC = () => {
     location.pathname.includes('/parameters/ccf') ? 'ccf' :
     location.pathname.includes('/parameters/overlay') ? 'overlay' :
     'overview';
+
+  // Clear scheme context when navigating to pages that don't need the sidebar
+  useEffect(() => {
+    if (pathSeg !== 'schemes' && pathSeg !== 'parameters') {
+      setSchemeContext(null);
+    }
+  }, [pathSeg]);
 
   const showSidebar = !!schemeContext || location.pathname.startsWith('/schemes/') || pathSeg === 'parameters';
 

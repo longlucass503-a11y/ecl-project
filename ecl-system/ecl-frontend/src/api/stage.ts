@@ -22,6 +22,7 @@ export interface StageRuleVO {
   targetStage: string;
   priority: number;
   observationDays?: number;
+  conditions?: string;
   jsonCondition?: string;
   createdAt?: string;
   updatedAt?: string;

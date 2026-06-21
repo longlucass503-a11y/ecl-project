@@ -6,6 +6,6 @@ import org.apache.ibatis.annotations.Select;
 
 public interface RiskGroupMapper extends BaseMapper<RiskGroupEntity> {
 
-    @Select("SELECT COALESCE(MAX(CAST(SUBSTRING(group_code, 5) AS INTEGER)), 0) FROM tbl_risk_group WHERE group_code LIKE 'GRP_%'")
+    @Select("SELECT COALESCE(MAX(CAST(SUBSTRING(group_code, 5) AS SIGNED)), 0) FROM tbl_risk_group WHERE group_code LIKE 'GRP_%'")
     int selectMaxRiskGroupSeq();
 }

@@ -237,6 +237,7 @@ const StageConfig: React.FC = () => {
       payload.jsonCondition = editingRule.jsonCondition || '';
       await stageApi.updateRule(editingRule.ruleId!, {
         ...editingRule,
+        conditions: undefined,
         ...payload,
       });
       message.success('规则已更新');
@@ -294,6 +295,7 @@ const StageConfig: React.FC = () => {
 
     await stageApi.updateRule(editorRuleId, {
       ...rule,
+      conditions: undefined,
       jsonCondition: jsonStr,
     });
     message.success('条件已保存');
