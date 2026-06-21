@@ -132,6 +132,14 @@ public class AssetInput {
     /** 异常码 */
     private String eadException;
 
+    // ========== 6.5 LGD 计算引擎输出 ==========
+
+    /** LGD 值 */
+    private double lgdValue;
+
+    /** 异常码（"WARN"=走的兜底路径） */
+    private String lgdException;
+
     // ========== 预留字段（后续引擎使用）==========
-    // lgdValue, eclValue ...
+    // eclValue ...
 }
