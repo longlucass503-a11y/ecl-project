@@ -10,6 +10,7 @@ import CcfConfig from '../pages/parameter/CcfConfig';
 import LgdConfig from '../pages/parameter/LgdConfig';
 import OverlayConfig from '../pages/parameter/OverlayConfig';
 import TrialCenter from '../pages/trial/TrialCenter';
+import JobsMonitor from '../pages/jobs/JobsMonitor';
 
 const Placeholder: React.FC<{ title: string }> = ({ title }) => (
   <div style={{
@@ -35,7 +36,7 @@ const router = createBrowserRouter([
       { path: 'parameters/ccf', element: <CcfConfig /> },
       { path: 'parameters/lgd', element: <LgdConfig /> },
       { path: 'parameters/overlay', element: <OverlayConfig /> },
-      { path: 'jobs', element: <Placeholder title="跑批监控" /> },
+      { path: 'jobs', element: <JobsMonitor /> },
       { path: 'trial', element: <TrialCenter /> },
     ],
   },
