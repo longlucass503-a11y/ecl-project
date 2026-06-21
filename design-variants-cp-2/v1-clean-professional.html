@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>跑批监控 - ECL 系统</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC",sans-serif;background:#f5f6fa;color:#1a1d29;line-height:1.5}
+:root{--color-primary:#1a56db;--color-primary-light:#e8effd;--color-primary-dark:#1243af;--color-success:#059669;--color-warning:#d97706;--color-danger:#dc2626;--color-bg:#f5f6fa;--color-surface:#fff;--color-border:#e5e7eb;--color-text-secondary:#6b7280;--color-text-muted:#9ca3af;--radius-sm:6px;--radius-md:10px;--shadow-sm:0 1px 2px rgba(0,0,0,.04)}
+.global-context{background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 32px;display:flex;align-items:center;gap:24px;box-shadow:var(--shadow-sm)}
+.context-logo{font-size:16px;font-weight:700;color:var(--color-primary);letter-spacing:-.3px}
+.context-logo span{color:#1a1d29;font-weight:400}
+.page{max-width:1280px;margin:0 auto;padding:24px 32px}
+.page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
+.page-header h1{font-size:22px;font-weight:600;letter-spacing:-.3px}
+.page-header .sub{font-size:14px;color:var(--color-text-secondary);margin-top:4px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.stat-card{background:#fff;border-radius:10px;padding:18px 20px;border:1px solid #e5e7eb;box-shadow:var(--shadow-sm);transition:box-shadow .15s}
+.stat-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.stat-card .stat-label{font-size:12px;color:var(--color-text-secondary);display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.stat-card .stat-value{font-size:26px;font-weight:700;letter-spacing:-.5px;line-height:1.1}
+.stat-card .stat-change{font-size:12px;margin-top:6px}
+.stat-card .stat-change.up{color:var(--color-success)}
+.stat-card .stat-change.down{color:var(--color-danger)}
+.panel{background:#fff;border-radius:10px;box-shadow:var(--shadow-sm);border:1px solid #e5e7eb;margin-bottom:20px}
+.panel-header{padding:14px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+.panel-header h2{font-size:15px;font-weight:600}
+.panel-body{padding:20px}
+.panel-body-nopad{padding:0}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:12px;font-weight:600;color:var(--color-text-secondary);padding:10px 12px;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid #f0f0f0;font-size:13px}
+tr:hover td{background:#f9fafb}
+.mono{font-family:"SF Mono","JetBrains Mono",monospace;font-size:12px}
+.btn-primary{background:var(--color-primary);color:#fff;border:none;padding:6px 16px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer}
+.btn-primary:hover{background:var(--color-primary-dark)}
+.btn-ghost{background:none;border:none;padding:5px 10px;border-radius:6px;font-size:13px;color:var(--color-text-secondary);cursor:pointer}
+.btn-ghost:hover{background:#f5f6fa}
+.btn-text{background:none;border:none;padding:3px 8px;border-radius:6px;font-size:12px;color:var(--color-text-secondary);cursor:pointer}
+.btn-text:hover{color:var(--color-primary);background:var(--color-primary-light)}
+.status-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:500}
+.sb-success{background:#d1fae5;color:#065f46}
+.sb-failed{background:#fee2e2;color:#991b1b}
+.sb-running{background:#dbeafe;color:#1e40af}
+.step-bar{display:flex;gap:0;margin-bottom:14px}
+.step-item{flex:1;display:flex;flex-direction:column;align-items:center;position:relative}
+.step-circle{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;z-index:1}
+.step-line{position:absolute;top:14px;left:calc(50%+14px);width:calc(100%-28px);height:2px;z-index:0}
+.step-label{font-size:10px;color:var(--color-text-muted);margin-top:4px;white-space:nowrap}
+.filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.filter-bar select,.filter-bar input{border:1px solid #e5e7eb;border-radius:6px;padding:4px 8px;font-size:12px}
+.toast{position:fixed;bottom:24px;right:24px;background:#1a1d29;color:#e1e7ef;padding:10px 18px;border-radius:8px;font-size:13px;z-index:9999;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+<div class="global-context"><div class="context-logo">ECL <span>减值计量系统</span></div></div>
+<div class="page">
+  <div class="page-header">
+    <div><h1>跑批监控</h1><div class="sub">查看和监控 ECL 批量计算任务</div></div>
+    <button class="btn-primary" onclick="showToast('新建跑批任务已提交')">＋ 新建跑批</button>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label"><span style="width:8px;height:8px;border-radius:50%;background:var(--color-primary);display:inline-block;"></span> 今日任务</div><div class="stat-value">3</div><div class="stat-change up">↑ 较昨日 +1</div></div>
+    <div class="stat-card"><div class="stat-label"><span style="width:8px;height:8px;border-radius:50%;background:var(--color-success);display:inline-block;"></span> 执行成功</div><div class="stat-value" style="color:var(--color-success);">2</div><div class="stat-change up">2,000,000 笔完成</div></div>
+    <div class="stat-card"><div class="stat-label"><span style="width:8px;height:8px;border-radius:50%;background:var(--color-warning);display:inline-block;"></span> 执行异常</div><div class="stat-value" style="color:var(--color-warning);">1</div><div class="stat-change down">12 笔跳过</div></div>
+    <div class="stat-card"><div class="stat-label"><span style="width:8px;height:8px;border-radius:50%;background:var(--color-danger);display:inline-block;"></span> 平均耗时</div><div class="stat-value">27.2s</div><div class="stat-change up">↓ 3.1s 较昨日</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-header"><h2>任务列表</h2>
+      <div class="filter-bar">
+        <select id="taskFilter" onchange="renderTasks()"><option value="">全部状态</option><option value="running">运行中</option><option value="success">成功</option><option value="failed">失败</option></select>
+        <input type="date" value="2026-06-18"><span style="color:var(--color-text-muted);font-size:12px;">~</span><input type="date" value="2026-06-18">
+        <button class="btn-ghost" style="font-size:11px;" onclick="simulateJob()">↻ 模拟跑批</button>
+      </div>
+    </div>
+    <div class="panel-body-nopad">
+      <table><thead><tr><th>任务 ID</th><th>方案</th><th>计量日</th><th>状态</th><th>总笔数</th><th>耗时</th><th>操作</th></tr></thead>
+        <tbody id="taskBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="runningPanel" class="panel">
+    <div class="panel-header"><h2 id="runningTitle">执行中 — JOB_20260618_001</h2>
+      <span id="runningBadge" class="status-badge sb-running"><span style="width:5px;height:5px;border-radius:50%;background:#3b82f6;animation:pulse 1.5s infinite;"></span> 运行中</span>
+    </div>
+    <div class="panel-body" id="runningBody">
+      <div class="step-bar" id="stepBar"></div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-text-secondary);background:#f9fafb;padding:10px 14px;border-radius:8px;">
+        <span id="progressText">已处理 423,891 / 1,000,000 笔</span>
+        <span id="errorText">异常跳过 0 笔</span>
+        <span id="etaText">预计剩余 ~18s</span>
+      </div>
+      <div style="margin-top:10px;height:4px;background:#e5e7eb;border-radius:4px;overflow:hidden;">
+        <div id="progressBar" style="width:42.4%;height:100%;background:linear-gradient(90deg,var(--color-primary),#4f8df5);border-radius:4px;transition:width .5s;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>
+<script>
+let tasks = [
+  { id:'JOB_20260618_001', scheme:'2026年Q3', date:'2026-06-18', status:'running', total:1000000, done:423891, elapsed:null, eta:'~18s' },
+  { id:'JOB_20260617_001', scheme:'2026年Q3', date:'2026-06-17', status:'success', total:1000000, done:1000000, elapsed:'26.8s', eta:'' },
+  { id:'JOB_20260616_001', scheme:'2026年Q1', date:'2026-06-16', status:'failed', total:500000, done:500000, elapsed:'12.3s', eta:'' }
+];
+let simInterval = null;
+
+function initSteps() {
+  const steps = ['参数加载','风险分组','阶段划分','PD 计算','ECL 计算','写表对账','完成'];
+  const stepBar = document.getElementById('stepBar');
+  stepBar.innerHTML = steps.map((s,i) => {
+    const done = i < 3;
+    return `<div class="step-item">
+      <div class="step-circle" style="background:${done?'#059669':'var(--color-primary)'};color:#fff;border:2px solid ${done?'#059669':'var(--color-primary)'};${i===3?'box-shadow:0 0 0 4px rgba(26,86,219,.15);':''}">${done?'✓':i===3?'4':i+1}</div>
+      ${i<6?`<div class="step-line" style="background:${done?'#059669':'#e5e7eb'};"></div>`:''}
+      <div class="step-label" style="color:${done?'#059669':i===3?'var(--color-primary)':'var(--color-text-muted)'};${i===3?'font-weight:500;':''}">${s}${i===3?'<br><span style="font-size:9px;">执行中...</span>':''}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderTasks() {
+  const filter = document.getElementById('taskFilter').value;
+  const data = filter ? tasks.filter(t => t.status === filter) : tasks;
+  const tbody = document.getElementById('taskBody');
+  const steps = ['参数加载','风险分组','阶段划分','PD 计算','ECL 计算','写表对账','完成'];
+
+  tbody.innerHTML = data.map(t => {
+    const badge = t.status === 'running' ? '<span class="status-badge sb-running"><span style="width:5px;height:5px;border-radius:50%;background:#3b82f6;animation:pulse 1.5s infinite;"></span> 运行中</span>'
+      : t.status === 'success' ? '<span class="status-badge sb-success"><span style="width:5px;height:5px;border-radius:50%;background:#059669;"></span> 成功</span>'
+      : '<span class="status-badge sb-failed"><span style="width:5px;height:5px;border-radius:50%;background:#dc2626;"></span> 失败</span>';
+    const progress = t.status === 'running' ? `${(t.done/1000).toFixed(0)}K/${(t.total/1000).toFixed(0)}K`
+      : t.status === 'failed' ? `${(t.done/1000).toFixed(0)}K` : t.total.toLocaleString();
+    return `<tr>
+      <td><span class="mono" style="color:var(--color-primary);font-weight:500;">${t.id}</span></td>
+      <td>${t.scheme}</td><td>${t.date}</td>
+      <td>${badge}</td>
+      <td>${progress}</td>
+      <td>${t.elapsed || t.eta || '-'}</td>
+      <td>
+        <span class="btn-text" onclick="showDetail('${t.id}')">查看明细</span>
+        ${t.status === 'failed' ? '<span class="btn-text" style="color:var(--color-danger);" onclick="showToast(\'异常详情\')">异常详情</span>' : ''}
+        ${t.status === 'success' ? '<span class="btn-text" onclick="showToast(\'异常详情\')">异常详情</span>' : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function showDetail(id) {
+  const t = tasks.find(x => x.id === id);
+  if (t) showToast(`📋 任务明细：${t.id} | ${t.scheme} | ${t.status === 'success' ? '已完成' : t.status === 'failed' ? '已失败' : '运行中'}`);
+}
+
+function simulateJob() {
+  if (simInterval) { clearInterval(simInterval); simInterval = null; }
+  const newId = 'JOB_' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '_' + String(Date.now()).slice(-3);
+  tasks.unshift({ id:newId, scheme:'2026年Q3', date:new Date().toISOString().slice(0,10), status:'running', total:1000000, done:0, elapsed:null, eta:'~30s' });
+
+  const runningPanel = document.getElementById('runningPanel');
+  const title = document.getElementById('runningTitle');
+  const badge = document.getElementById('runningBadge');
+  const stepBar = document.getElementById('stepBar');
+  runningPanel.style.display = 'block';
+  title.textContent = `执行中 — ${newId}`;
+  badge.innerHTML = '<span style="width:5px;height:5px;border-radius:50%;background:#3b82f6;animation:pulse 1.5s infinite;"></span> 运行中';
+  badge.className = 'status-badge sb-running';
+
+  const steps = ['参数加载','风险分组','阶段划分','PD 计算','ECL 计算','写表对账','完成'];
+  stepBar.innerHTML = steps.map((s,i) => `<div class="step-item">
+    <div class="step-circle" id="sc${i}" style="background:#e5e7eb;color:#9ca3af;border:2px solid #e5e7eb;">${i+1}</div>
+    ${i < 6 ? `<div class="step-line" id="sl${i}" style="background:#e5e7eb;"></div>` : ''}
+    <div class="step-label" id="slbl${i}">${s}</div>
+  </div>`).join('');
+
+  let pct = 0, stepIdx = 0;
+  const task = tasks[0];
+  simInterval = setInterval(() => {
+    pct += Math.random() * 6 + 2;
+    if (pct >= 100) {
+      pct = 100; task.status = 'success'; task.done = task.total; task.elapsed = '27.5s';
+      clearInterval(simInterval); simInterval = null;
+      badge.innerHTML = '<span style="width:5px;height:5px;border-radius:50%;background:#059669;"></span> 成功';
+      badge.className = 'status-badge sb-success';
+      document.getElementById('etaText').textContent = '';
+      document.getElementById('stepBar').innerHTML = steps.map((s,i) => `<div class="step-item">
+        <div class="step-circle" style="background:#059669;color:#fff;border:2px solid #059669;font-size:11px;">✓</div>
+        ${i < 6 ? '<div class="step-line" style="background:#059669;"></div>' : ''}
+        <div class="step-label" style="color:#059669;">${s}</div>
+      </div>`).join('');
+      showToast(`✅ ${newId} 跑批完成`);
+    }
+    task.done = Math.round(pct / 100 * task.total);
+    document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressText').textContent = `已处理 ${task.done.toLocaleString()} / ${task.total.toLocaleString()} 笔`;
+    document.getElementById('errorText').textContent = `异常跳过 ${Math.floor(Math.random()*3)} 笔`;
+    document.getElementById('etaText').textContent = `预计剩余 ~${Math.round((100-pct)*0.3)}s`;
+
+    const newStep = Math.min(Math.floor(pct / 14), 6);
+    if (newStep !== stepIdx) {
+      for (let i = 0; i <= newStep; i++) {
+        const sc = document.getElementById('sc'+i);
+        const sl = document.getElementById('sl'+i);
+        const lbl = document.getElementById('slbl'+i);
+        if (sc) { sc.style.background = '#059669'; sc.style.color = '#fff'; sc.style.borderColor = '#059669'; sc.textContent = '✓'; }
+        if (sl) sl.style.background = '#059669';
+        if (lbl) lbl.style.color = '#059669';
+      }
+      stepIdx = newStep;
+      if (stepIdx < 7) {
+        const sc = document.getElementById('sc'+stepIdx);
+        if (sc) { sc.style.background = 'var(--color-primary)'; sc.style.color = '#fff'; sc.style.borderColor = 'var(--color-primary)'; sc.textContent = stepIdx + 1; }
+      }
+    }
+  }, 600);
+
+  renderTasks();
+  showToast(`⏳ ${newId} 跑批已启动`);
+}
+
+initSteps();
+renderTasks();
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+<script>if(window.self!==window.top)document.documentElement.className+=' iframed'</script>
+<style>.iframed .global-context{display:none!important}</style>
+</body>
+</html>

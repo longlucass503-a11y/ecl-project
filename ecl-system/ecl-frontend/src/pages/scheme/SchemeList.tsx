@@ -134,7 +134,7 @@ const SchemeList: React.FC = () => {
   ];
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 32px' }}>
+    <div className="ecl-page">
       <PageHeader
         title="ECL 方案管理"
         subtitle="管理 ECL 减值方案的生命周期：创建、复制、发布、失效"

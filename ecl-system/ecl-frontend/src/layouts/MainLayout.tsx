@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import {
+  AppstoreOutlined,
+  BarChartOutlined,
+  BranchesOutlined,
+  DashboardOutlined,
+  LineChartOutlined,
+  PercentageOutlined,
+  SafetyCertificateOutlined,
+} from '@ant-design/icons';
+import { StatusTag } from '../components';
 import './MainLayout.css';
-import '../components/StatusTag.css';
 
 export interface SchemeContext {
   schemeId: string;
@@ -10,14 +19,16 @@ export interface SchemeContext {
   status: string;
 }
 
+type SchemeStatus = 'DRAFT' | 'PUBLISHED' | 'EFFECTIVE' | 'EXPIRED';
+
 const sidebarItems = [
-  { key: 'overview', label: '方案总览', icon: '◉' },
-  { key: 'risk-groups', label: '风险分组', icon: '📊' },
-  { key: 'stage', label: '阶段划分', icon: '🧩' },
-  { key: 'pd', label: 'PD 参数', icon: '📈' },
-  { key: 'lgd', label: 'LGD 参数', icon: '📉' },
-  { key: 'ccf', label: 'CCF 参数', icon: '📐' },
-  { key: 'overlay', label: '管理层叠加', icon: '🛡️' },
+  { key: 'overview', label: '方案总览', icon: <DashboardOutlined /> },
+  { key: 'risk-groups', label: '风险分组', icon: <AppstoreOutlined /> },
+  { key: 'stage', label: '阶段划分', icon: <BranchesOutlined /> },
+  { key: 'pd', label: 'PD 参数', icon: <LineChartOutlined /> },
+  { key: 'lgd', label: 'LGD 参数', icon: <BarChartOutlined /> },
+  { key: 'ccf', label: 'CCF 参数', icon: <PercentageOutlined /> },
+  { key: 'overlay', label: '管理层叠加', icon: <SafetyCertificateOutlined /> },
 ];
 
 const topNavItems = [
@@ -30,6 +41,13 @@ const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [schemeContext, setSchemeContext] = useState<SchemeContext | null>(null);
+  const searchParams = new URLSearchParams(location.search);
+  const schemeIdFromQuery = searchParams.get('schemeId') || '';
+  const schemeIdFromOverviewPath =
+    location.pathname.startsWith('/schemes/') && !location.pathname.startsWith('/schemes/compare')
+      ? location.pathname.split('/').filter(Boolean)[1] || ''
+      : '';
+  const activeSchemeId = schemeContext?.schemeId || schemeIdFromQuery || schemeIdFromOverviewPath;
 
   // Determine active top nav
   const pathSeg = location.pathname.split('/').filter(Boolean)[0] || '';
@@ -54,11 +72,11 @@ const MainLayout: React.FC = () => {
   };
 
   const handleSidebarClick = (key: string) => {
-    if (!schemeContext) return;
+    if (!activeSchemeId) return;
     if (key === 'overview') {
-      navigate(`/schemes/${schemeContext.schemeId}`);
+      navigate(`/schemes/${activeSchemeId}`);
     } else {
-      navigate(`/parameters/${key}?schemeId=${schemeContext.schemeId}`);
+      navigate(`/parameters/${key}?schemeId=${activeSchemeId}`);
     }
   };
 
@@ -91,11 +109,7 @@ const MainLayout: React.FC = () => {
               <div className="sidebar-scheme">
                 <div className="ss-code">{schemeContext.schemeCode}</div>
                 <div className="ss-name">{schemeContext.schemeName}</div>
-                <span className={`status-tag st-${schemeContext.status.toLowerCase()}`}>
-                  ● {schemeContext.status === 'EFFECTIVE' ? '已生效' :
-                     schemeContext.status === 'DRAFT' ? '草稿' :
-                     schemeContext.status === 'PUBLISHED' ? '已发布' : '已失效'}
-                </span>
+                <StatusTag status={schemeContext.status as SchemeStatus} />
               </div>
             ) : (
               <div className="sidebar-scheme">

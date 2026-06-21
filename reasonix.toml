@@ -1,0 +1,84 @@
+# Reasonix configuration.
+# Resolution order: flag > ./reasonix.toml > ~/.reasonix/config.toml > built-in defaults.
+# Secrets come from the environment via api_key_env; never put keys here.
+
+config_version = 3   # schema marker for diagnostics; old versions may ignore it
+default_model = "deepseek-flash"
+# language      = "zh"   # ui/model language; empty = auto-detect from $LANG / $REASONIX_LANG
+
+[agent]
+# system_prompt = """..."""   # omit to use the built-in prompt for this version
+# system_prompt_file = "prompts/system.md"   # overrides system_prompt when set
+# max_steps         = 0   # executor tool-call rounds; 0 = no limit
+# planner_max_steps = 12   # planner read-only tool-call rounds; 0 = no limit
+temperature       = 0.0
+auto_plan   = "off"   # off|on; off keeps plan mode manual
+# reasoning_language = "zh"   # visible reasoning language: auto|zh|en
+# auto_plan_classifier = "deepseek-flash"   # optional; only used for borderline tasks
+soft_compact_ratio  = 0.5   # notice only; keeps cache-first prefix intact
+compact_ratio       = 0.8   # try compacting when prompt reaches this fraction
+compact_force_ratio = 0.9   # force compacting at this high-water mark
+# keep                = ["errors"]   # compaction keep policy: errors, user_marked
+# recent_keep         = 2   # minimum recent messages kept verbatim
+cold_resume_prune   = true   # elide stale tool results when reopening a session past the provider cache window
+# planner_model = "mimo"   # optional: enable two-model collaboration
+# subagent_model = "deepseek-pro"   # optional default for runAs=subagent skills
+# subagent_models = { review = "deepseek-pro", security_review = "deepseek-pro" }   # per-skill overrides
+# subagent_effort = "high"   # optional default effort for subagents
+# subagent_efforts = { review = "max", task = "high" }   # per-tool/skill effort overrides
+# output_style = "explanatory"   # explanatory | learning | concise | custom; empty = default
+
+[tools]
+enabled = []   # empty = all built-in tools
+bash_timeout_seconds = 120   # foreground safety cap; set 0 for no tool-local cap
+
+[tools.background_jobs]
+stalled_warning_seconds = 900   # warn once per background job after this many quiet seconds; 0 disables
+
+[lsp]
+enabled = true   # language server tools; servers launch lazily when used
+# [lsp.servers.go]
+# command = "gopls"
+# args = []
+# extensions = [".go"]
+
+[skills]
+paths = ["/home/workspace/.reasonix/skills", "/home/workspace/.reasonix/agent-skills/skills"]   # extra custom skill roots
+# excluded_paths = ["~/.agents/skills"]   # hide convention roots without deleting folders
+max_depth = 3   # nested scan depth; default 3, set 1 for legacy root-only discovery
+# disabled_skills = ["review"]   # hide noisy or unwanted skills
+
+[permissions]
+# Per-call gating. mode = writer fallback when no rule matches: ask|allow|deny.
+# Readers always default to allow. Precedence: deny > ask > allow > fallback.
+# Rules are "Tool" or "Tool(specifier)"; e.g. Bash(go test:*), Edit(src/**).
+mode  = "ask"
+# deny = ["Bash(rm -rf*)", "Bash(git push*)"]   # hard-blocked in every mode
+allow = ["Bash(cd /home/workspace/EclProject/ecl-system && ls -la pom.xml ecl-*/pom.xml | head -10)", "Bash(cd /home/workspace/EclProject/ecl-system && mvn clean compile -q 2>&1 | tail -5; echo \"EXIT: $?\")", "Bash(# 验证 Jackson 修复 —— 发送含 sortOrder 的请求\ncurl -s -X POST http://localhost:8080/api/v1/parameters/risk-groups \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"schemeId\": \"4921a89988ae4c57b19d6c4ddcd1d29f\",\n    \"groupName\": \"测试分组\",\n    \"sortOrder\": 1,\n    \"description\": \"来自页面的测试\"\n  }' | python3 -m json.tool)", "Bash(# 检查这次的错误\ngrep \"WARN\\|ERROR\\|400\\|Bad Request\\|sortOrder\\|Unrecognized\" /home/workspace/EclProject/ecl-system/logs/backend.log | tail -5)", "Bash(# 检查编译的文件是否包含最新修改\nls -la /home/workspace/EclProject/ecl-system/ecl-common/target/classes/com/bank/ecl/common/config/JacksonConfig.class 2>/dev/null\necho \"---\"\n# 检查源码修改时间 vs 编译时间\nls -la /home/workspace/EclProject/ecl-system/ecl-common/src/main/java/com/bank/ecl/common/config/JacksonConfig.java\necho \"---\"\n# 看编译输出\ntail -20 /home/workspace/EclProject/ecl-system/logs/backend.log | grep -i \"compil\\|error\\|warn\" | head -5)", "Bash(# 停后端\npkill -f \"spring-boot:run\" 2>/dev/null || true\nsleep 1\n\n# 清理 ecl-common 编译缓存\nrm -rf /home/workspace/EclProject/ecl-system/ecl-common/target\n\n# 重新启动\ncd /home/workspace/EclProject/ecl-system/ecl-bootstrap\nsetsid bash -c 'mvn spring-boot:run >> /home/workspace/EclProject/ecl-system/logs/backend.log 2>&1 & echo $! > /home/workspace/EclProject/ecl-system/logs/backend.pid; wait' > /dev/null 2>&1 &\necho \"Backend starting (clean compile)...\"\nsleep 20)", "Bash(# 检查后端是否还在\npgrep -f \"[s]pring-boot\" || echo \"no backend\"\necho \"---\"\n# 清理并重新编译\nrm -rf /home/workspace/EclProject/ecl-system/ecl-common/target\necho \"cleaned ecl-common target\")", "Bash(# 等后端就绪\nfor i in $(seq 1 45); do\n  code=$(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/api/v1/schemes 2>/dev/null || echo \"000\")\n  if [ \"$code\" != \"000\" ]; then\n    echo \"后端就绪 (HTTP $code, ${i}s)\"\n    break\n  fi\n  if [ $((i % 5)) -eq 0 ]; then\n    # 显示编译进度\n    tail -1 /home/workspace/EclProject/ecl-system/logs/backend.log 2>/dev/null | head -c 80\n    echo \"\"\n  fi\n  sleep 4\ndone)", "Bash(# 测试含 sortOrder 的请求（之前报 400 的请求）\ncurl -s -X POST http://localhost:8080/api/v1/parameters/risk-groups \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"schemeId\": \"4921a89988ae4c57b19d6c4ddcd1d29f\",\n    \"groupName\": \"测试分组\",\n    \"sortOrder\": 1,\n    \"description\": \"来自页面的测试\"\n  }' | python3 -m json.tool)", "Bash(# 确认编译后的 class 包含我们的修改\njavap -p /home/workspace/EclProject/ecl-system/ecl-common/target/classes/com/bank/ecl/common/config/JacksonConfig.class 2>/dev/null | head -20\necho \"---\"\n# 重新检查 class 编译时间\nls -la /home/workspace/EclProject/ecl-system/ecl-common/target/classes/com/bank/ecl/common/config/JacksonConfig.class 2>/dev/null\necho \"---\"\n# 检查 backend log 中新的错误\ngrep \"WARN\" /home/workspace/EclProject/ecl-system/logs/backend.log | grep \"nio-8080\" | tail -3)", "Bash(find /home/workspace/EclProject/ecl-system -name \"JacksonConfig.class\" -type f\necho \"---\"\nls -la /home/workspace/EclProject/ecl-system/ecl-common/target/ 2>/dev/null | head -10\necho \"---\"\n# 检查能否找到编译好的 ecl-common jar\nls -la /root/.m2/repository/com/bank/ecl/ecl-common/3.1.0/ 2>/dev/null)", "Bash(pkill -f \"[s]pring-boot:run\" 2>/dev/null || true\nsleep 1\n\n# 先编译 ecl-common 并安装到本地仓库\ncd /home/workspace/EclProject/ecl-system\nmvn clean install -pl ecl-common -am -q 2>&1 | tail -5\necho \"ecl-common recompiled, exit code: $?\")", "Bash(# 验证编译后的 class 包含 FAIL_ON_UNKNOWN\njavap -p /home/workspace/EclProject/ecl-system/ecl-common/target/classes/com/bank/ecl/common/config/JacksonConfig.class 2>/dev/null)", "Bash(# 确认新 jar 已安装\nls -la /root/.m2/repository/com/bank/ecl/ecl-common/3.1.0/ecl-common-3.1.0.jar\necho \"---\"\n# 现在重新启动后端\ncd /home/workspace/EclProject/ecl-system/ecl-bootstrap && setsid bash -c 'mvn spring-boot:run >> /home/workspace/EclProject/ecl-system/logs/backend.log 2>&1 & echo $! > /home/workspace/EclProject/ecl-system/logs/backend.pid; wait' > /dev/null 2>&1 &\necho \"Backend starting...\")", "Bash(# 等待后端就绪\nfor i in $(seq 1 45); do\n  code=$(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/api/v1/schemes 2>/dev/null || echo \"000\")\n  if [ \"$code\" != \"000\" ]; then\n    echo \"后端就绪 (HTTP $code, ${i}s)\"\n    break\n  fi\n  sleep 4\ndone\n\n# 测试\necho \"---\"\necho \"测试含未知字段的请求:\"\ncurl -s -X POST http://localhost:8080/api/v1/parameters/risk-groups \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"schemeId\": \"4921a89988ae4c57b19d6c4ddcd1d29f\",\n    \"groupName\": \"测试分组\",\n    \"sortOrder\": 1,\n    \"description\": \"来自页面测试\"\n  }' | python3 -m json.tool)", "Bash(grep \"ERROR\\|Exception\\|Caused by\" /home/workspace/EclProject/ecl-system/logs/backend.log | tail -10)", "Bash(# 创建新方案\nSCHEME=$(curl -s -X POST http://localhost:8080/api/v1/schemes \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"schemeName\":\"测试方案\",\"description\":\"验证\"}' | python3 -c \"\nimport json,sys\nd=json.load(sys.stdin)\nprint(d['data']['schemeId'])\n\")\necho \"方案ID: $SCHEME\"\n\n# 测试创建分组（含未知字段 sortOrder）\necho \"\"\necho \"=== 创建风险分组（含 sortOrder 字段）===\"\ncurl -s -X POST \"http://localhost:8080/api/v1/parameters/risk-groups\" \\\n  -H \"Content-Type: application/json\" \\\n  -d \"{\n    \\\"schemeId\\\": \\\"$SCHEME\\\",\n    \\\"groupName\\\": \\\"对公企业\\\",\n    \\\"sortOrder\\\": 1,\n    \\\"description\\\": \\\"来自页面的测试\\\"\n  }\" | python3 -m json.tool)", "Bash(# 全页面验证\nnode /tmp/check-all-pages.mjs 2>&1 | grep -E \"^✅|^❌|全部\")"]
+# ask = ["Edit(src/**)"]   # force a prompt even if otherwise allowed
+
+[sandbox]
+# Confine tool blast radius. File-writers (write_file/edit_file/multi_edit/move_file)
+# may only write under workspace_root (empty = current dir) and allow_write extras.
+# bash = "enforce" (default) jails each command in an OS sandbox (macOS now;
+# graceful fallback elsewhere); "off" disables it. network allows egress.
+# workspace_root = ""            # default: current working directory
+# allow_write = ["/tmp"]          # extra dirs writers may also modify
+bash    = "enforce"
+network = true
+
+[statusline]
+# A custom status line: a command whose first stdout line replaces the built-in
+# data row. It receives {"model","contextUsed","contextWindow","cwd"} as JSON on stdin.
+# command = "my-statusline.sh"
+
+# External MCP servers. type: "stdio" (default, a subprocess) | "http" | "sse".
+# ${VAR} / ${VAR:-default} are expanded from the environment in command/args/env/url/headers.
+# [[plugins]]
+# name    = "example"
+# command = "reasonix-plugin-example"
+# [[plugins]]                                  # a remote server over Streamable HTTP
+# name    = "stripe"
+# type    = "http"
+# url     = "https://mcp.stripe.com"
+# headers = { Authorization = "Bearer ${STRIPE_KEY}" }

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>风险分组配置 - ECL 系统</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC",sans-serif;background:#f5f6fa;color:#1a1d29;line-height:1.5}
+  :root{--color-primary:#1a56db;--color-primary-light:#e8effd;--color-primary-dark:#1243af;--color-success:#059669;--color-warning:#d97706;--color-danger:#dc2626;--color-bg:#f5f6fa;--color-surface:#fff;--color-border:#e5e7eb;--color-text:#1a1d29;--color-text-secondary:#6b7280;--color-text-muted:#9ca3af;--radius-sm:6px;--radius-md:10px;--shadow-sm:0 1px 2px rgba(0,0,0,.04)}
+  .global-context{background:var(--color-surface);border-bottom:1px solid var(--color-border);padding:12px 32px;display:flex;align-items:center;gap:24px;box-shadow:var(--shadow-sm)}
+  .context-logo{font-size:16px;font-weight:700;color:var(--color-primary);letter-spacing:-.3px}
+  .context-logo span{color:var(--color-text);font-weight:400}
+  .page{max-width:1280px;margin:0 auto;padding:24px 32px}
+  .page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
+  .page-header h1{font-size:22px;font-weight:600;letter-spacing:-.3px}
+  .page-header .sub{font-size:14px;color:var(--color-text-secondary);margin-top:4px}
+  .btn-ghost{background:none;border:none;padding:6px 12px;border-radius:6px;font-size:13px;color:#6b7280;cursor:pointer}
+  .btn-ghost:hover{background:var(--color-bg)}
+  .btn-primary{background:var(--color-primary);color:#fff;border:none;padding:6px 16px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer}
+  .btn-primary:hover{background:var(--color-primary-dark)}
+  .btn-outline{background:#fff;border:1px solid var(--color-border);padding:4px 12px;border-radius:6px;font-size:12px;color:#6b7280;cursor:pointer}
+  .btn-outline:hover{border-color:var(--color-primary);color:var(--color-primary)}
+  .btn-text{background:none;border:none;padding:4px 8px;border-radius:6px;font-size:12px;color:#6b7280;cursor:pointer}
+  .btn-text:hover{color:var(--color-primary);background:var(--color-primary-light)}
+  .btn-text.danger:hover{color:var(--color-danger);background:#fee2e2}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:12px;font-weight:600;color:#6b7280;padding:8px 12px;border-bottom:2px solid var(--color-border);white-space:nowrap}
+  td{padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px}
+  tr:hover td{background:#f9fafb}
+  .split-layout{display:grid;grid-template-columns:300px 1fr;min-height:420px}
+  .split-sidebar{border-right:1px solid var(--color-border);background:#fafbfc}
+  .split-main{overflow-y:auto}
+  .group-item{padding:12px 16px;cursor:pointer;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:10px;transition:all .1s}
+  .group-item:hover{background:var(--color-primary-light)}
+  .group-item.active{background:var(--color-primary-light);border-left:3px solid var(--color-primary)}
+  .group-item .gi-name{font-size:13px;font-weight:500}
+  .group-item .gi-code{font-size:11px;color:var(--color-text-muted)}
+  .group-item .gi-count{font-size:11px;color:#6b7280;margin-left:auto}
+  .dim-chip{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb;margin:1px}
+  .dim-chip.wildcard{color:#9ca3af;background:#f9fafb;border-style:dashed}
+  .gi-delete{font-size:10px;color:#9ca3af;cursor:pointer;padding:2px 4px;border-radius:4px;opacity:0;transition:opacity .12s}
+  .group-item:hover .gi-delete{opacity:1}
+  .gi-delete:hover{color:#dc2626;background:#fee2e2}
+  .info-note{font-size:12px;color:#9ca3af;padding:8px 12px;border-top:1px solid var(--color-border);background:#f9fafb}
+  /* Modal */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1000;align-items:center;justify-content:center}
+  .modal-overlay.show{display:flex}
+  .modal-box{background:#fff;border-radius:12px;width:600px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.15);overflow:hidden}
+  .modal-head{padding:16px 20px;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center}
+  .modal-head h3{font-size:15px;font-weight:600}
+  .modal-close{background:none;border:none;font-size:18px;color:#9ca3af;cursor:pointer;padding:4px}
+  .modal-close:hover{color:#1a1d29}
+  .modal-body{padding:20px;max-height:60vh;overflow-y:auto}
+  .modal-foot{padding:12px 20px;border-top:1px solid var(--color-border);display:flex;justify-content:flex-end;gap:8px}
+  .form-group{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+  .form-group label{font-size:12px;color:#6b7280;font-weight:500}
+  .form-group select,.form-group input,.form-group textarea{border:1px solid var(--color-border);border-radius:6px;padding:6px 10px;font-size:13px}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .toast{position:fixed;bottom:24px;right:24px;background:#1a1d29;color:#e1e7ef;padding:10px 18px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none}
+  .toast.show{opacity:1;transform:translateY(0)}
+  @media(max-width:800px){.split-layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="global-context"><div class="context-logo">ECL <span>减值计量系统</span></div></div>
+<div class="page">
+  <div class="page-header">
+    <div><h1>风险分组配置</h1><div class="sub">管理风险分组主数据及匹配规则，系统根据业务维度自动将借据归类到对应分组</div></div>
+    <button class="btn-primary" onclick="openGroupModal()">⊕ 新增分组</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-body-nopad">
+      <div class="split-layout">
+        <!-- Left: group list -->
+        <div class="split-sidebar">
+          <div style="padding:12px 16px;border-bottom:1px solid var(--color-border);font-size:12px;font-weight:600;color:#6b7280;display:flex;justify-content:space-between;">
+            <span>风险分组</span>
+            <span id="groupCount" style="font-weight:400;"></span>
+          </div>
+          <div id="groupList"></div>
+        </div>
+        <!-- Right: rules -->
+        <div class="split-main">
+          <div style="padding:14px 20px;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;">
+            <div><span id="selectedGroupTitle" style="font-size:15px;font-weight:600;"></span><span style="font-size:12px;color:#6b7280;margin-left:8px;">匹配规则</span></div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-ghost" style="font-size:12px;border:1px solid var(--color-border);" onclick="openGroupModal(currentGroup)">编辑分组</button>
+              <button class="btn-primary" style="font-size:12px;padding:4px 14px;" onclick="openRuleModal()">⊕ 新增规则</button>
+            </div>
+          </div>
+          <table><thead><tr><th style="width:50px;">优先级</th><th>业务条线</th><th>客户类型</th><th>产品类型</th><th>行业</th><th>地区</th><th>担保类型</th><th style="width:80px;">操作</th></tr></thead>
+            <tbody id="rulesBody"></tbody>
+          </table>
+          <div class="info-note">空值字段 = 通配（不限制该维度）· 6 个维度全空禁止保存 · 引擎按优先级逐条匹配</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Group Modal (add/edit) -->
+<div class="modal-overlay" id="groupModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3 id="groupModalTitle">新增分组</h3><button class="modal-close" onclick="closeModal('groupModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>分组编码</label><input id="groupCode" placeholder="如：GRP_006" maxlength="10"></div>
+      <div class="form-group"><label>分组名称</label><input id="groupName" placeholder="如：政府贷款"></div>
+      <div class="form-group"><label>排序</label><input type="number" id="groupSort" value="10" min="1"></div>
+    </div>
+    <div class="modal-foot"><button class="btn-ghost" onclick="closeModal('groupModal')">取消</button><button class="btn-primary" onclick="saveGroup()">保存</button></div>
+  </div>
+</div>
+
+<!-- Rule Modal (add/edit) -->
+<div class="modal-overlay" id="ruleModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3 id="ruleModalTitle">新增匹配规则</h3><button class="modal-close" onclick="closeModal('ruleModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>优先级（数字越小越高）</label><input type="number" id="rulePriority" value="1" min="1"></div>
+        <div class="form-group"><label>业务条线</label><select id="ruleBizLine"><option value="">（通配）</option><option>非零售</option><option>零售</option></select></div>
+        <div class="form-group"><label>客户类型</label><select id="ruleCustType"><option value="">（通配）</option><option>对公</option><option>个人</option><option>同业</option></select></div>
+        <div class="form-group"><label>担保类型</label><select id="ruleCollateral"><option value="">（通配）</option><option>房产抵押</option><option>设备抵押</option><option>存单质押</option><option>保证金</option><option>信用（无押品）</option></select></div>
+        <div class="form-group"><label>产品类型</label><select id="ruleProduct"><option value="">（通配）</option><option>公司贷款</option><option>银团贷款</option><option>贸易融资</option><option>流动资金贷款</option><option>信用卡</option></select></div>
+        <div class="form-group"><label>行业代码</label><select id="ruleIndustry"><option value="">（通配）</option><option>J - 房地产</option><option>C - 制造业</option><option>F - 批发零售</option><option>K - 建筑业</option><option>I - 信息技术</option></select></div>
+        <div class="form-group"><label>地区代码</label><select id="ruleRegion"><option value="">（通配）</option><option>BJ - 北京</option><option>SH - 上海</option><option>GZ - 广州</option><option>SZ - 深圳</option><option>其他</option></select></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn-ghost" onclick="closeModal('ruleModal')">取消</button><button class="btn-primary" onclick="saveRule()">保存</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════ Data Model ═══════════════
+const groups = {
+  'GRP_001': { name: '对公业务', sort: 1, readOnly: false },
+  'GRP_002': { name: '非银金融', sort: 2, readOnly: false },
+  'GRP_003': { name: '银行同业', sort: 3, readOnly: false },
+  'GRP_004': { name: '债券业务', sort: 4, readOnly: false },
+  'GRP_005': { name: '供应链小微', sort: 5, readOnly: false },
+  'GRP_999': { name: '兜底分组', sort: 99, readOnly: true }
+};
+
+const rules = {
+  'GRP_001': [
+    { id: 'r1', priority: 1, bizLine: '非零售', custType: '对公', product: '', industry: '', region: '', collateral: '' },
+    { id: 'r2', priority: 2, bizLine: '非零售', custType: '对公', product: '银团贷款', industry: '', region: '', collateral: '' },
+    { id: 'r3', priority: 3, bizLine: '非零售', custType: '对公', product: '贸易融资', industry: '', region: '', collateral: '' }
+  ],
+  'GRP_002': [
+    { id: 'r4', priority: 1, bizLine: '非零售', custType: '同业', product: '', industry: '', region: '', collateral: '' },
+    { id: 'r5', priority: 2, bizLine: '非零售', custType: '同业', product: '同业拆借', industry: '', region: '', collateral: '' }
+  ],
+  'GRP_003': [
+    { id: 'r6', priority: 1, bizLine: '非零售', custType: '同业', product: '同业存单', industry: '', region: '', collateral: '' }
+  ],
+  'GRP_004': [
+    { id: 'r7', priority: 1, bizLine: '非零售', custType: '对公', product: '债券投资', industry: '', region: '', collateral: '' },
+    { id: 'r8', priority: 2, bizLine: '非零售', custType: '同业', product: '债券投资', industry: '', region: '', collateral: '' }
+  ],
+  'GRP_005': [
+    { id: 'r9', priority: 1, bizLine: '零售', custType: '个人', product: '', industry: '', region: '', collateral: '' },
+    { id: 'r10', priority: 2, bizLine: '零售', custType: '个人', product: '经营贷', industry: '', region: '', collateral: '' }
+  ],
+  'GRP_999': [
+    { id: 'r99', priority: 1, bizLine: '', custType: '', product: '', industry: '', region: '', collateral: '' }
+  ]
+};
+
+let currentGroup = 'GRP_001';
+let editingRuleId = null;
+let editingGroupCode = null;
+const groupColorMap = ['#dbeafe,#2563eb','#d1fae5,#059669','#fef3c7,#d97706','#ede9fe,#7c3aed','#fce7f3,#db2777','#f3f4f6,#9ca3af'];
+
+function getGroupColors(idx) {
+  const c = groupColorMap[idx % groupColorMap.length].split(',');
+  return { bg: c[0], fg: c[1] };
+}
+
+// ─── Render ───
+function renderGroups() {
+  const container = document.getElementById('groupList');
+  const keys = Object.keys(groups).sort((a, b) => groups[a].sort - groups[b].sort);
+  document.getElementById('groupCount').textContent = keys.length + ' 个';
+  container.innerHTML = keys.map((code, i) => {
+    const g = groups[code];
+    const colors = getGroupColors(i);
+    const isActive = code === currentGroup;
+    const ruleCount = (rules[code] || []).length;
+    return `<div class="group-item ${isActive ? 'active' : ''}" onclick="switchGroup('${code}')">
+    <span style="width:24px;height:24px;border-radius:6px;background:${colors.bg};color:${colors.fg};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;">${g.readOnly ? '—' : (i + 1)}</span>
+    <div><div class="gi-name" style="${g.readOnly ? 'color:#9ca3af' : ''}">${g.name}</div><div class="gi-code">${code}</div></div>
+    <div class="gi-count" style="${g.readOnly ? 'color:#9ca3af' : ''}">${g.readOnly ? '只读' : ruleCount + ' 条规则'}</div>
+    ${g.readOnly ? '' : `<span class="gi-delete" onclick="event.stopPropagation();deleteGroup('${code}')" title="删除分组">✕</span>`}
+    </div>`;
+  }).join('');
+}
+
+function renderRules() {
+  const tbody = document.getElementById('rulesBody');
+  const groupRules = rules[currentGroup] || [];
+  document.getElementById('selectedGroupTitle').textContent = `${currentGroup} ${groups[currentGroup]?.name || ''}`;
+
+  // check if readOnly
+  const isReadOnly = groups[currentGroup]?.readOnly;
+  document.querySelector('.split-main .btn-primary').style.display = isReadOnly ? 'none' : '';
+  document.querySelector('.split-main .btn-ghost').style.display = isReadOnly ? 'none' : '';
+
+  if (groupRules.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8"><div style="padding:40px;text-align:center;color:#9ca3af;">暂无规则，点击「新增规则」添加</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = groupRules.sort((a, b) => a.priority - b.priority).map(r => {
+    const dims = [
+      { v: r.bizLine }, { v: r.custType }, { v: r.product },
+      { v: r.industry }, { v: r.region }, { v: r.collateral }
+    ];
+    return `<tr>
+      <td><strong>${r.priority}</strong></td>
+      ${dims.map(d => `<td>${d.v ? `<span class="dim-chip">${d.v}</span>` : `<span class="dim-chip wildcard">通配</span>`}</td>`).join('')}
+      <td>${isReadOnly ? '<span style="font-size:12px;color:#9ca3af;">只读</span>' :
+        `<button class="btn-text" onclick="openRuleModal('${r.id}')">编辑</button><button class="btn-text danger" onclick="deleteRule('${r.id}')">删除</button>`}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function switchGroup(code) {
+  currentGroup = code;
+  renderGroups();
+  renderRules();
+}
+
+function deleteGroup(code) {
+  if (groups[code]?.readOnly) { showToast('兜底分组不可删除'); return; }
+  if (Object.keys(groups).filter(k => !groups[k].readOnly).length <= 1) {
+    showToast('至少保留一个非只读分组'); return;
+  }
+  if (!confirm(`确定删除分组「${groups[code].name}」？其下的 ${(rules[code]||[]).length} 条规则也将被删除。`)) return;
+  delete groups[code];
+  delete rules[code];
+  if (currentGroup === code) {
+    const remaining = Object.keys(groups);
+    currentGroup = remaining[0];
+  }
+  renderGroups();
+  renderRules();
+  showToast('分组已删除');
+}
+
+// ─── Group CRUD ───
+function openGroupModal(code) {
+  editingGroupCode = code || null;
+  document.getElementById('groupModalTitle').textContent = code ? '编辑分组' : '新增分组';
+  document.getElementById('groupCode').value = code || '';
+  document.getElementById('groupCode').disabled = !!code;
+  document.getElementById('groupName').value = code ? groups[code].name : '';
+  document.getElementById('groupSort').value = code ? groups[code].sort : 10;
+  openModal('groupModal');
+}
+
+function saveGroup() {
+  const code = document.getElementById('groupCode').value.trim();
+  const name = document.getElementById('groupName').value.trim();
+  const sort = parseInt(document.getElementById('groupSort').value) || 99;
+  if (!code || !name) { showToast('编码和名称不能为空'); return; }
+  if (!editingGroupCode && groups[code]) { showToast('该编码已存在'); return; }
+  if (!editingGroupCode) {
+    groups[code] = { name, sort, readOnly: false };
+    rules[code] = [];
+  } else {
+    groups[code].name = name;
+    groups[code].sort = sort;
+  }
+  if (!editingGroupCode) currentGroup = code;
+  closeModal('groupModal');
+  renderGroups();
+  renderRules();
+  showToast(editingGroupCode ? '分组已更新' : '分组已创建');
+}
+
+// ─── Rule CRUD ───
+function openRuleModal(ruleId) {
+  editingRuleId = ruleId || null;
+  document.getElementById('ruleModalTitle').textContent = ruleId ? '编辑匹配规则' : '新增匹配规则';
+  if (ruleId) {
+    const r = rules[currentGroup].find(x => x.id === ruleId);
+    if (r) {
+      document.getElementById('rulePriority').value = r.priority;
+      document.getElementById('ruleBizLine').value = r.bizLine;
+      document.getElementById('ruleCustType').value = r.custType;
+      document.getElementById('ruleProduct').value = r.product;
+      document.getElementById('ruleIndustry').value = r.industry;
+      document.getElementById('ruleRegion').value = r.region;
+      document.getElementById('ruleCollateral').value = r.collateral;
+    }
+  } else {
+    document.getElementById('rulePriority').value = (rules[currentGroup]?.length || 0) + 1;
+    ['ruleBizLine','ruleCustType','ruleProduct','ruleIndustry','ruleRegion','ruleCollateral'].forEach(id => document.getElementById(id).value = '');
+  }
+  openModal('ruleModal');
+}
+
+function saveRule() {
+  const vals = {
+    priority: parseInt(document.getElementById('rulePriority').value) || 1,
+    bizLine: document.getElementById('ruleBizLine').value,
+    custType: document.getElementById('ruleCustType').value,
+    product: document.getElementById('ruleProduct').value,
+    industry: document.getElementById('ruleIndustry').value,
+    region: document.getElementById('ruleRegion').value,
+    collateral: document.getElementById('ruleCollateral').value
+  };
+  // Validate: at least 1 non-empty dimension
+  const filled = Object.entries(vals).filter(([k, v]) => k !== 'priority' && v).length;
+  if (filled === 0) { showToast('至少需要填写一个匹配维度'); return; }
+
+  if (!rules[currentGroup]) rules[currentGroup] = [];
+  if (editingRuleId) {
+    const idx = rules[currentGroup].findIndex(x => x.id === editingRuleId);
+    if (idx > -1) rules[currentGroup][idx] = { ...rules[currentGroup][idx], ...vals };
+  } else {
+    const id = 'r' + Date.now().toString(36);
+    rules[currentGroup].push({ id, ...vals });
+  }
+  closeModal('ruleModal');
+  renderRules();
+  renderGroups();
+  showToast(editingRuleId ? '规则已更新' : '规则已新增');
+}
+
+function deleteRule(id) {
+  if (!confirm('确定删除这条匹配规则？')) return;
+  if (rules[currentGroup]) {
+    rules[currentGroup] = rules[currentGroup].filter(r => r.id !== id);
+  }
+  renderRules();
+  renderGroups();
+  showToast('规则已删除');
+}
+
+// ─── Utils ───
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// Init
+renderGroups();
+renderRules();
+</script>
+
+<style>.iframed .global-context{display:none!important}</style>
+<script>(function(){if(window.self!==window.top)document.documentElement.className+=" iframed"})();</script>
+</body>
+</html>

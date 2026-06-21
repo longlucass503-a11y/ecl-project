@@ -182,7 +182,7 @@ const CcfConfig: React.FC = () => {
   // ─── 渲染 ───
   if (!selectedSchemeId) {
     return (
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 32px' }}>
+      <div className="ecl-page">
         <PageHeader
           title="CCF 参数配置"
           subtitle="管理信用转换系数曲线，按产品类型和承诺期限定义 CCF 值"
@@ -210,7 +210,7 @@ const CcfConfig: React.FC = () => {
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 32px' }}>
+    <div className="ecl-page">
       <PageHeader
         title="CCF 参数配置"
         subtitle="管理信用转换系数曲线，按产品类型和承诺期限定义 CCF 值"
@@ -283,7 +283,7 @@ const CcfConfig: React.FC = () => {
               </tr>
             ))}
             {curves.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 40 }}>暂无数据</td></tr>
+              <tr><td colSpan={6}><div className="ecl-empty-row">暂无数据</div></td></tr>
             )}
           </tbody>
         </table>

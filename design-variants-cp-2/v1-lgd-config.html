@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LGD 参数配置 - ECL 系统</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC",sans-serif;background:#f5f6fa;color:#1a1d29;line-height:1.5}
+  :root{--color-primary:#1a56db;--color-primary-light:#e8effd;--color-primary-dark:#1243af;--color-success:#059669;--color-warning:#d97706;--color-danger:#dc2626;--color-bg:#f5f6fa;--color-surface:#fff;--color-border:#e5e7eb;--color-text-secondary:#6b7280;--color-text-muted:#9ca3af;--radius-sm:6px;--radius-md:10px;--shadow-sm:0 1px 2px rgba(0,0,0,.04)}
+  .global-context{background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 32px;display:flex;align-items:center;gap:24px;box-shadow:var(--shadow-sm)}
+  .context-logo{font-size:16px;font-weight:700;color:#1a56db;letter-spacing:-.3px}
+  .context-logo span{color:#1a1d29;font-weight:400}
+  .page{max-width:1280px;margin:0 auto;padding:24px 32px}
+  .page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
+  .page-header h1{font-size:22px;font-weight:600;letter-spacing:-.3px}
+  .page-header .sub{font-size:14px;color:#6b7280;margin-top:4px}
+  .panel{background:#fff;border-radius:10px;box-shadow:var(--shadow-sm);border:1px solid #e5e7eb;margin-bottom:20px}
+  .panel-header{padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+  .panel-header h2{font-size:15px;font-weight:600}
+  .panel-body{padding:20px}
+  .panel-body-nopad{padding:0}
+  .btn-ghost{background:none;border:none;padding:6px 12px;border-radius:6px;font-size:13px;color:#6b7280;cursor:pointer}
+  .btn-ghost:hover{background:#f5f6fa}
+  .btn-primary{background:#1a56db;color:#fff;border:none;padding:6px 16px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer}
+  .btn-primary:hover{background:#1243af}
+  .btn-text{background:none;border:none;padding:4px 8px;border-radius:6px;font-size:12px;color:#6b7280;cursor:pointer}
+  .btn-text:hover{color:#1a56db;background:#e8effd}
+  .btn-text.danger:hover{color:#dc2626;background:#fee2e2}
+  .btn-outline{background:#fff;border:1px solid #e5e7eb;padding:4px 12px;border-radius:6px;font-size:12px;color:#6b7280;cursor:pointer}
+  .btn-outline:hover{border-color:#1a56db;color:#1a56db}
+  .group-selector{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+  .group-chip{padding:6px 16px;border-radius:20px;font-size:13px;cursor:pointer;background:#fff;color:#6b7280;border:1px solid #e5e7eb;transition:all .12s}
+  .group-chip:hover{background:#eef0f5}
+  .group-chip.active{background:#e8effd;color:#1243af;border-color:#d1ddfb;font-weight:500}
+  .tabs{display:flex;gap:0;border-bottom:1px solid #e5e7eb;padding:0 20px}
+  .tab-item{padding:8px 20px;font-size:13px;color:#6b7280;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab-item:hover{color:#1a1d29}
+  .tab-item.active{color:#1a56db;border-bottom-color:#1a56db;font-weight:500}
+  .tab-content{display:none}
+  .tab-content.active{display:block}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:12px;font-weight:600;color:#6b7280;padding:8px 12px;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+  td{padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px}
+  tr:hover td{background:#f9fafb}
+  .mono{font-family:"SF Mono","JetBrains Mono",monospace;font-size:12px}
+  .cell-editable{cursor:pointer;padding:4px 8px;border-radius:4px;border:1px solid transparent;display:inline-block;min-width:90px;text-align:right;transition:all .12s}
+  .cell-editable:hover{background:#fff;border-color:#e5e7eb;box-shadow:0 0 0 2px #e8effd}
+  .cell-editable:focus{background:#fff;border-color:#1a56db;box-shadow:0 0 0 2px #e8effd;outline:none}
+  .wildcard{color:#9ca3af;font-size:12px;font-style:italic}
+  .info-note{font-size:12px;color:#9ca3af;padding:8px 12px;border-top:1px solid #e5e7eb;background:#f9fafb}
+  /* Modal */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1000;align-items:center;justify-content:center}
+  .modal-overlay.show{display:flex}
+  .modal-box{background:#fff;border-radius:12px;width:520px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.15);overflow:hidden}
+  .modal-head{padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+  .modal-head h3{font-size:15px;font-weight:600}
+  .modal-close{background:none;border:none;font-size:18px;color:#9ca3af;cursor:pointer;padding:4px}
+  .modal-close:hover{color:#1a1d29}
+  .modal-body{padding:20px;max-height:70vh;overflow-y:auto}
+  .modal-foot{padding:12px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:8px}
+  .form-group{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+  .form-group label{font-size:12px;color:#6b7280;font-weight:500}
+  .form-group select,.form-group input{border:1px solid #e5e7eb;border-radius:6px;padding:6px 10px;font-size:13px}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .toast{position:fixed;bottom:24px;right:24px;background:#1a1d29;color:#e1e7ef;padding:10px 18px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none}
+  .toast.show{opacity:1;transform:translateY(0)}
+  .empty-state{padding:40px;text-align:center;color:#9ca3af;font-size:13px}
+</style>
+</head>
+<body>
+<div class="global-context"><div class="context-logo">ECL <span>减值计量系统</span></div></div>
+<div class="page">
+  <div class="page-header">
+    <div><h1>LGD 参数配置</h1><div class="sub">管理各风险分组的 LGD 基准曲线，以及方案级的押品折扣率和折旧率</div></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-outline" onclick="showToast('数据已导出')">⬇ 导出</button>
+      <button class="btn-primary" onclick="openCurveModal()">⊕ 新增基准曲线</button>
+    </div>
+  </div>
+  <div class="group-selector" id="groupSelector"></div>
+  <div class="panel">
+    <div class="tabs">
+      <div class="tab-item active" data-tab="curve" onclick="switchTab(this)">基准曲线</div>
+      <div class="tab-item" data-tab="discount" onclick="switchTab(this)">押品折扣率</div>
+      <div class="tab-item" data-tab="depreciation" onclick="switchTab(this)">押品折旧率</div>
+    </div>
+
+    <!-- 基准曲线 -->
+    <div class="tab-content active" id="tab-curve">
+      <div class="panel-body-nopad">
+        <table><thead><tr><th>担保类型</th><th>产品类型</th><th>LGD 基准值</th><th style="width:100px;">操作</th></tr></thead>
+          <tbody id="curveBody"></tbody>
+        </table>
+        <div class="info-note">引擎根据 (collateral_type, product_type) 逐层精确匹配 · product_type=NULL = 通配 · NONE 为无押品兜底值</div>
+      </div>
+    </div>
+
+    <!-- 押品折扣率 (all groups share) -->
+    <div class="tab-content" id="tab-discount">
+      <div class="panel-body-nopad">
+        <table><thead><tr><th>押品类型</th><th>折扣率</th><th style="width:100px;">操作</th></tr></thead>
+          <tbody id="discountBody"></tbody>
+        </table>
+        <div class="info-note">所有分组共享同一套折扣率，不依赖风险分组</div>
+      </div>
+    </div>
+
+    <!-- 押品折旧率 (all groups share) -->
+    <div class="tab-content" id="tab-depreciation">
+      <div class="panel-body-nopad">
+        <div style="padding:12px 16px;display:flex;gap:12px;align-items:center;border-bottom:1px solid #e5e7eb;">
+          <span style="font-size:13px;font-weight:500;">押品类型：</span>
+          <select id="deprCollateralType" style="border:1px solid #e5e7eb;border-radius:6px;padding:5px 10px;font-size:13px;" onchange="renderDepreciation()">
+            <option>房产</option><option>设备</option><option>车辆</option><option>存单</option>
+          </select>
+          <button class="btn-text" onclick="addDeprRow()">＋ 新增折旧年限</button>
+        </div>
+        <table><thead><tr><th>第 N 年</th><th>折旧率</th><th style="width:100px;">操作</th></tr></thead>
+          <tbody id="depreciationBody"></tbody>
+        </table>
+        <div class="info-note">所有分组共享同一套折旧率 · 引擎根据押品年龄 (year_offset) 精确匹配</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Curve Modal -->
+<div class="modal-overlay" id="curveModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3 id="curveModalTitle">新增 LGD 基准曲线</h3><button class="modal-close" onclick="closeModal('curveModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>担保类型</label><select id="curveCollateral"><option>房产抵押</option><option>设备抵押</option><option>存单质押</option><option>保证金</option><option>车辆抵押</option><option>NONE（无押品）</option></select></div>
+        <div class="form-group"><label>产品类型</label><select id="curveProduct"><option value="">（通配 — 不限制）</option><option>公司贷款</option><option>银团贷款</option><option>贸易融资</option><option>流动资金贷款</option></select></div>
+        <div class="form-group"><label>LGD 基准值</label><input type="number" id="curveValue" step="0.0001" min="0" max="1" value="0.2000"></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn-ghost" onclick="closeModal('curveModal')">取消</button><button class="btn-primary" onclick="confirmCurve()">保存</button></div>
+  </div>
+</div>
+
+<!-- Discount Modal -->
+<div class="modal-overlay" id="discountModal">
+  <div class="modal-box" style="width:400px;">
+    <div class="modal-head"><h3 id="discountModalTitle">新增折扣率</h3><button class="modal-close" onclick="closeModal('discountModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>押品类型</label><select id="discountType"><option>房产</option><option>设备</option><option>车辆</option><option>存单</option><option>保证金</option></select></div>
+      <div class="form-group"><label>折扣率 (0.0000 ~ 1.0000)</label><input type="number" id="discountValue" step="0.01" min="0" max="1" value="0.15"></div>
+    </div>
+    <div class="modal-foot"><button class="btn-ghost" onclick="closeModal('discountModal')">取消</button><button class="btn-primary" onclick="confirmDiscount()">保存</button></div>
+  </div>
+</div>
+
+<!-- Depreciation Modal -->
+<div class="modal-overlay" id="deprModal">
+  <div class="modal-box" style="width:400px;">
+    <div class="modal-head"><h3 id="deprModalTitle">新增折旧年限</h3><button class="modal-close" onclick="closeModal('deprModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>第 N 年（从 1 开始）</label><input type="number" id="deprYear" min="1" value="1"></div>
+      <div class="form-group"><label>折旧率 (0.0000 ~ 1.0000)</label><input type="number" id="deprValue" step="0.01" min="0" max="1" value="0.05"></div>
+    </div>
+    <div class="modal-foot"><button class="btn-ghost" onclick="closeModal('deprModal')">取消</button><button class="btn-primary" onclick="confirmDepr()">保存</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═════════ Data Model ═════════
+// Per-group LGD curves
+const lgdCurves = {
+  'GRP_001': [
+    { id: 'c1', coll: '房产抵押', prod: '', val: 0.2000 },
+    { id: 'c2', coll: '房产抵押', prod: '公司贷款', val: 0.1800 },
+    { id: 'c3', coll: '设备抵押', prod: '', val: 0.3500 },
+    { id: 'c4', coll: '存单质押', prod: '', val: 0.0500 },
+    { id: 'c5', coll: '保证金', prod: '', val: 0.0000 },
+    { id: 'c6', coll: '车辆抵押', prod: '', val: 0.3000 },
+    { id: 'c7', coll: 'NONE（无押品）', prod: '', val: 0.4500 }
+  ],
+  'GRP_002': [
+    { id: 'c8', coll: '房产抵押', prod: '', val: 0.1800 },
+    { id: 'c9', coll: '存单质押', prod: '', val: 0.0400 },
+    { id: 'c10', coll: 'NONE（无押品）', prod: '', val: 0.4000 }
+  ],
+  'GRP_003': [
+    { id: 'c11', coll: '存单质押', prod: '', val: 0.0300 },
+    { id: 'c12', coll: '保证金', prod: '', val: 0.0000 },
+    { id: 'c13', coll: 'NONE（无押品）', prod: '', val: 0.3500 }
+  ],
+  'GRP_004': [
+    { id: 'c14', coll: '房产抵押', prod: '', val: 0.2000 },
+    { id: 'c15', coll: 'NONE（无押品）', prod: '', val: 0.4500 }
+  ],
+  'GRP_005': [
+    { id: 'c16', coll: '房产抵押', prod: '', val: 0.2500 },
+    { id: 'c17', coll: '设备抵押', prod: '', val: 0.4000 },
+    { id: 'c18', coll: 'NONE（无押品）', prod: '', val: 0.5000 }
+  ]
+};
+
+// Shared discount rates (all groups)
+const discountRates = [
+  { type: '房产', val: 0.15 },
+  { type: '设备', val: 0.25 },
+  { type: '车辆', val: 0.20 },
+  { type: '存单', val: 0.05 },
+  { type: '保证金', val: 0.00 }
+];
+
+// Shared depreciation rates per collateral type
+const deprRates = {
+  '房产': [{ year: 1, val: 0.05 }, { year: 2, val: 0.05 }, { year: 3, val: 0.05 }, { year: 4, val: 0.04 }, { year: 5, val: 0.04 }, { year: '6~10', val: 0.03 }, { year: '11~20', val: 0.02 }],
+  '设备': [{ year: 1, val: 0.10 }, { year: 2, val: 0.10 }, { year: 3, val: 0.08 }, { year: 4, val: 0.08 }, { year: 5, val: 0.06 }, { year: '6~10', val: 0.05 }],
+  '车辆': [{ year: 1, val: 0.15 }, { year: 2, val: 0.15 }, { year: 3, val: 0.10 }, { year: 4, val: 0.10 }, { year: '5~8', val: 0.08 }],
+  '存单': [{ year: 1, val: 0.00 }]
+};
+
+const groups = ['GRP_001','GRP_002','GRP_003','GRP_004','GRP_005'];
+const groupNames = { 'GRP_001':'对公业务','GRP_002':'非银金融','GRP_003':'银行同业','GRP_004':'债券业务','GRP_005':'供应链小微' };
+let currentGroup = 'GRP_001';
+let editingCurveId = null;
+let editingDiscountType = null;
+let editingDeprIdx = null;
+
+function renderGroups() {
+  document.getElementById('groupSelector').innerHTML = groups.map(g =>
+    `<div class="group-chip ${g === currentGroup ? 'active' : ''}" onclick="switchGroup('${g}')">${groupNames[g]}</div>`
+  ).join('');
+}
+function switchGroup(g) { currentGroup = g; renderGroups(); renderCurves(); }
+
+// ─── Curves ───
+function renderCurves() {
+  const data = lgdCurves[currentGroup] || [];
+  const tbody = document.getElementById('curveBody');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state">暂无曲线，点击「新增基准曲线」添加</div></td></tr>'; return; }
+  tbody.innerHTML = data.map(r =>
+    `<tr><td style="font-weight:500;${r.coll === 'NONE（无押品）' ? 'color:#dc2626;' : ''}">${r.coll}</td>
+      <td>${r.prod ? r.prod : '<span class="wildcard">(通配)</span>'}</td>
+      <td><span class="mono cell-editable" contenteditable onblur="editCurveVal('${r.id}', this.textContent)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${r.val.toFixed(4)}</span></td>
+      <td><button class="btn-text" onclick="openCurveModal('${r.id}')">编辑</button><button class="btn-text danger" onclick="deleteCurve('${r.id}')">删除</button></td></tr>`
+  ).join('');
+}
+
+function editCurveVal(id, val) {
+  const data = lgdCurves[currentGroup];
+  const r = data.find(x => x.id === id);
+  if (r) { r.val = parseFloat(val) || 0; showToast('已更新'); }
+}
+
+function openCurveModal(id) {
+  editingCurveId = id || null;
+  document.getElementById('curveModalTitle').textContent = id ? '编辑 LGD 基准曲线' : '新增 LGD 基准曲线';
+  if (id) {
+    const r = lgdCurves[currentGroup].find(x => x.id === id);
+    if (r) {
+      document.getElementById('curveCollateral').value = r.coll;
+      document.getElementById('curveProduct').value = r.prod;
+      document.getElementById('curveValue').value = r.val;
+    }
+  } else {
+    document.getElementById('curveCollateral').value = '房产抵押';
+    document.getElementById('curveProduct').value = '';
+    document.getElementById('curveValue').value = 0.2000;
+  }
+  openModal('curveModal');
+}
+function confirmCurve() {
+  const coll = document.getElementById('curveCollateral').value;
+  const prod = document.getElementById('curveProduct').value;
+  const val = parseFloat(document.getElementById('curveValue').value) || 0;
+  if (editingCurveId) {
+    const r = lgdCurves[currentGroup].find(x => x.id === editingCurveId);
+    if (r) { r.coll = coll; r.prod = prod; r.val = val; }
+  } else {
+    lgdCurves[currentGroup].push({ id: 'c' + Date.now().toString(36), coll, prod, val });
+  }
+  closeModal('curveModal');
+  renderCurves();
+  showToast(editingCurveId ? '曲线已更新' : '曲线已新增');
+}
+function deleteCurve(id) {
+  if (!confirm('确定删除这条 LGD 基准曲线？')) return;
+  lgdCurves[currentGroup] = lgdCurves[currentGroup].filter(x => x.id !== id);
+  renderCurves();
+  showToast('已删除');
+}
+
+// ─── Discount ───
+function renderDiscount() {
+  const tbody = document.getElementById('discountBody');
+  tbody.innerHTML = discountRates.map((r, i) =>
+    `<tr><td style="font-weight:500;">${r.type}</td>
+      <td><span class="mono cell-editable" contenteditable onblur="editDiscount(${i}, this.textContent)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${r.val.toFixed(4)}</span></td>
+      <td><button class="btn-text" onclick="openDiscountModal(${i})">编辑</button><button class="btn-text danger" onclick="deleteDiscount(${i})">删除</button></td></tr>`
+  ).join('');
+}
+function editDiscount(i, val) { discountRates[i].val = parseFloat(val) || 0; showToast('已更新'); }
+function openDiscountModal(i) {
+  editingDiscountType = i;
+  document.getElementById('discountModalTitle').textContent = i != null ? '编辑折扣率' : '新增折扣率';
+  if (i != null) { document.getElementById('discountType').value = discountRates[i].type; document.getElementById('discountValue').value = discountRates[i].val; }
+  else { document.getElementById('discountType').value = '房产'; document.getElementById('discountValue').value = 0.15; }
+  openModal('discountModal');
+}
+function confirmDiscount() {
+  const type = document.getElementById('discountType').value;
+  const val = parseFloat(document.getElementById('discountValue').value) || 0;
+  if (editingDiscountType != null) { discountRates[editingDiscountType].val = val; }
+  else { discountRates.push({ type, val }); }
+  closeModal('discountModal');
+  renderDiscount();
+  showToast('已保存');
+}
+function deleteDiscount(i) { if (!confirm('确定删除？')) return; discountRates.splice(i, 1); renderDiscount(); showToast('已删除'); }
+
+// ─── Depreciation ───
+function renderDepreciation() {
+  const collType = document.getElementById('deprCollateralType').value;
+  const data = deprRates[collType] || [];
+  const tbody = document.getElementById('depreciationBody');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="3"><div class="empty-state">暂无折旧数据</div></td></tr>'; return; }
+  tbody.innerHTML = data.map((r, i) =>
+    `<tr><td style="font-weight:500;">${typeof r.year === 'string' ? r.year : `第 ${r.year} 年`}</td>
+      <td><span class="mono cell-editable" contenteditable onblur="editDepr('${collType}',${i}, this.textContent)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${r.val.toFixed(4)}</span></td>
+      <td><button class="btn-text" onclick="openDeprModal('${collType}',${i})">编辑</button><button class="btn-text danger" onclick="deleteDepr('${collType}',${i})">删除</button></td></tr>`
+  ).join('');
+}
+function editDepr(ct, i, val) { if (deprRates[ct] && deprRates[ct][i]) { deprRates[ct][i].val = parseFloat(val) || 0; showToast('已更新'); } }
+function addDeprRow() { openDeprModal(document.getElementById('deprCollateralType').value, null); }
+function openDeprModal(ct, i) {
+  editingDeprIdx = i;
+  document.getElementById('deprModalTitle').textContent = i != null ? '编辑折旧年限' : '新增折旧年限';
+  if (i != null) { document.getElementById('deprYear').value = deprRates[ct][i].year; document.getElementById('deprValue').value = deprRates[ct][i].val; }
+  else { document.getElementById('deprYear').value = (deprRates[ct]?.length || 0) + 1; document.getElementById('deprValue').value = 0.05; }
+  openModal('deprModal');
+}
+function confirmDepr() {
+  const ct = document.getElementById('deprCollateralType').value;
+  const year = document.getElementById('deprYear').value;
+  const val = parseFloat(document.getElementById('deprValue').value) || 0;
+  if (!deprRates[ct]) deprRates[ct] = [];
+  if (editingDeprIdx != null) { deprRates[ct][editingDeprIdx] = { year, val }; }
+  else { deprRates[ct].push({ year, val }); }
+  closeModal('deprModal');
+  renderDepreciation();
+  showToast('已保存');
+}
+function deleteDepr(ct, i) { if (!confirm('确定删除？')) return; deprRates[ct].splice(i, 1); renderDepreciation(); showToast('已删除'); }
+
+function switchTab(el) {
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + el.dataset.tab).classList.add('active');
+  if (el.dataset.tab === 'discount') renderDiscount();
+  if (el.dataset.tab === 'depreciation') renderDepreciation();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+renderGroups(); renderCurves();
+</script>
+
+<style>.iframed .global-context{display:none!important}</style>
+<script>(function(){if(window.self!==window.top)document.documentElement.className+=" iframed"})();</script>
+</body>
+</html>

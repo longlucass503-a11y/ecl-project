@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理层叠加 - ECL 系统</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC",sans-serif;background:#f5f6fa;color:#1a1d29;line-height:1.5}
+  :root{--color-primary:#1a56db;--color-primary-light:#e8effd;--color-primary-dark:#1243af;--color-success:#059669;--color-warning:#d97706;--color-danger:#dc2626;--color-bg:#f5f6fa;--color-surface:#fff;--color-border:#e5e7eb;--color-text-secondary:#6b7280;--color-text-muted:#9ca3af;--radius-sm:6px;--radius-md:10px;--shadow-sm:0 1px 2px rgba(0,0,0,.04)}
+  .global-context{background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 32px;display:flex;align-items:center;gap:24px;box-shadow:var(--shadow-sm)}
+  .context-logo{font-size:16px;font-weight:700;color:#1a56db;letter-spacing:-.3px}
+  .context-logo span{color:#1a1d29;font-weight:400}
+  .page{max-width:1280px;margin:0 auto;padding:24px 32px}
+  .page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
+  .page-header h1{font-size:22px;font-weight:600;letter-spacing:-.3px}
+  .page-header .sub{font-size:14px;color:#6b7280;margin-top:4px}
+  .panel{background:#fff;border-radius:10px;box-shadow:var(--shadow-sm);border:1px solid #e5e7eb;margin-bottom:20px}
+  .panel-header{padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+  .panel-header h2{font-size:15px;font-weight:600}
+  .panel-body{padding:20px}
+  .panel-body-nopad{padding:0}
+  .btn-ghost{background:none;border:none;padding:6px 12px;border-radius:6px;font-size:13px;color:#6b7280;cursor:pointer}
+  .btn-ghost:hover{background:#f5f6fa}
+  .btn-primary{background:#1a56db;color:#fff;border:none;padding:6px 16px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer}
+  .btn-primary:hover{background:#1243af}
+  .btn-text{background:none;border:none;padding:4px 8px;border-radius:6px;font-size:12px;color:#6b7280;cursor:pointer}
+  .btn-text:hover{color:#1a56db;background:#e8effd}
+  .btn-text.danger:hover{color:#dc2626;background:#fee2e2}
+  .btn-outline{background:#fff;border:1px solid #e5e7eb;padding:4px 12px;border-radius:6px;font-size:12px;color:#6b7280;cursor:pointer}
+  .btn-outline:hover{border-color:#1a56db;color:#1a56db}
+  .group-selector{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+  .group-chip{padding:6px 16px;border-radius:20px;font-size:13px;cursor:pointer;background:#fff;color:#6b7280;border:1px solid #e5e7eb;transition:all .12s}
+  .group-chip:hover{background:#eef0f5}
+  .group-chip.active{background:#e8effd;color:#1243af;border-color:#d1ddfb;font-weight:500}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:12px;font-weight:600;color:#6b7280;padding:8px 12px;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+  td{padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px}
+  tr:hover td{background:#f9fafb}
+  .rule-tag{display:inline-flex;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+  .rule-tag.special{background:#ede9fe;color:#6d28d9}
+  .rule-tag.calib{background:#dbeafe;color:#1e40af}
+  .rule-tag.error{background:#fee2e2;color:#991b1b}
+  .cond-chip{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb;margin:1px}
+  .info-note{font-size:12px;color:#9ca3af;padding:8px 12px;border-top:1px solid #e5e7eb;background:#f9fafb}
+  .filter-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .filter-row select{border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;font-size:12px}
+  .hit-result{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  /* Modal */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1000;align-items:center;justify-content:center}
+  .modal-overlay.show{display:flex}
+  .modal-box{background:#fff;border-radius:12px;width:620px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.15);overflow:hidden}
+  .modal-head{padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+  .modal-head h3{font-size:15px;font-weight:600}
+  .modal-close{background:none;border:none;font-size:18px;color:#9ca3af;cursor:pointer;padding:4px}
+  .modal-close:hover{color:#1a1d29}
+  .modal-body{padding:20px;max-height:70vh;overflow-y:auto}
+  .modal-foot{padding:12px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:8px}
+  .form-group{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+  .form-group label{font-size:12px;color:#6b7280;font-weight:500}
+  .form-group select,.form-group input{border:1px solid #e5e7eb;border-radius:6px;padding:6px 10px;font-size:13px}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .toast{position:fixed;bottom:24px;right:24px;background:#1a1d29;color:#e1e7ef;padding:10px 18px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none}
+  .toast.show{opacity:1;transform:translateY(0)}
+  .empty-state{padding:40px;text-align:center;color:#9ca3af;font-size:13px}
+</style>
+</head>
+<body>
+<div class="global-context"><div class="context-logo">ECL <span>减值计量系统</span></div></div>
+<div class="page">
+  <div class="page-header">
+    <div><h1>管理层叠加配置</h1><div class="sub">按风险分组配置 ECL 叠加规则（不累加，取等效比例最高一条）</div></div>
+    <button class="btn-primary" onclick="openRuleModal()">⊕ 新增规则</button>
+  </div>
+  <div class="group-selector" id="groupSelector"></div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>叠加规则列表</h2>
+      <div class="filter-row">
+        <select id="typeFilter" onchange="renderRules()"><option value="">全部类型</option><option value="SPECIAL">SPECIAL</option><option value="CALIBRATION">CALIBRATION</option><option value="MODEL_ERROR">MODEL_ERROR</option></select>
+        <select id="statusFilter" onchange="renderRules()"><option value="">全部状态</option><option value="active">启用</option><option value="inactive">停用</option></select>
+      </div>
+    </div>
+    <div class="panel-body-nopad">
+      <table><thead><tr><th style="width:50px;">优先级</th><th>规则名称</th><th style="width:90px;">类型</th><th style="width:110px;">调整方式</th><th>匹配条件</th><th style="width:100px;">操作</th></tr></thead>
+        <tbody id="rulesBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Rule Hit Test -->
+  <div class="panel">
+    <div class="panel-header"><h2>规则命中测试</h2><span style="font-size:12px;color:#9ca3af">验证叠加规则配置的正确性</span></div>
+    <div class="panel-body">
+      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="form-group" style="margin:0;">
+          <label>测试借据</label>
+          <div style="display:flex;gap:4px;">
+            <input type="text" id="testAssetId" value="AST20260618000001" style="border:1px solid #e5e7eb;border-radius:6px;padding:5px 10px;font-size:13px;width:200px;">
+            <button class="btn-ghost" style="border:1px solid #e5e7eb;font-size:12px;" onclick="queryTestAsset()">查询</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding-bottom:4px;">
+          <span style="font-size:11px;color:#6b7280;">客户信息</span>
+          <span id="testAssetInfo" style="font-size:13px;padding:5px 0;">XXX地产公司 · 行业：房地产(J) · 对公</span>
+        </div>
+        <button class="btn-primary" onclick="runHitTest()" style="padding:6px 20px;margin-bottom:4px;">▶ 测试</button>
+      </div>
+      <div id="hitResult" style="display:none;margin-top:14px;padding:14px;background:#f9fafb;border-radius:10px;border:1px solid #e5e7eb;">
+        <div style="font-size:13px;font-weight:500;margin-bottom:8px;">命中结果</div>
+        <div id="hitContent" class="hit-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Rule Modal -->
+<div class="modal-overlay" id="ruleModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3 id="ruleModalTitle">新增叠加规则</h3><button class="modal-close" onclick="closeModal('ruleModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>规则名称</label><input id="ruleName" placeholder="如：房地产业专项"></div>
+        <div class="form-group"><label>优先级（越小越优先）</label><input type="number" id="rulePriority" value="1" min="1"></div>
+        <div class="form-group"><label>叠加类型</label><select id="ruleType"><option value="SPECIAL">SPECIAL</option><option value="CALIBRATION">CALIBRATION</option><option value="MODEL_ERROR">MODEL_ERROR</option></select></div>
+        <div class="form-group"><label>调整方式</label><select id="ruleMethod" onchange="toggleMethodInput()">
+          <option value="PERCENTAGE">PERCENTAGE（加百分比）</option>
+          <option value="ADDBP">ADDBP（加基点）</option>
+          <option value="FIXED">FIXED（固定金额）</option>
+        </select></div>
+        <div class="form-group"><label id="methodLabel">调整值 (+1% = 0.01)</label><input type="number" id="ruleMethodVal" step="0.0001" value="0.01"></div>
+        <div class="form-group"><label>生效日期</label><input type="date" id="ruleStart" value="2026-04-01"></div>
+        <div class="form-group"><label>失效日期（可选）</label><input type="date" id="ruleEnd" value=""></div>
+      </div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:8px;font-weight:500;">匹配条件</div>
+      <div class="form-row">
+        <div class="form-group"><label>行业范围（多选）</label>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <label style="font-size:12px;"><input type="checkbox" class="ind-chk" value="J"> 房地产(J)</label>
+            <label style="font-size:12px;"><input type="checkbox" class="ind-chk" value="K"> 建筑(K)</label>
+            <label style="font-size:12px;"><input type="checkbox" class="ind-chk" value="C"> 制造业(C)</label>
+            <label style="font-size:12px;"><input type="checkbox" class="ind-chk" value="F"> 批发零售(F)</label>
+            <label style="font-size:12px;"><input type="checkbox" class="ind-chk" value="I"> 信息技术(I)</label>
+            <label style="font-size:12px;"><input type="checkbox" class="ind-chk" value="">（不限行业）</label>
+          </div>
+        </div>
+        <div class="form-group"><label>客户类型</label><select id="ruleCustType"><option value="">（不限）</option><option>对公</option><option>个人</option><option>同业</option></select></div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label>条件预览 (JSON)</label>
+          <pre id="condPreview" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px;font-size:11px;color:#6b7280;min-height:40px;white-space:pre-wrap;"></pre>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn-ghost" onclick="closeModal('ruleModal')">取消</button><button class="btn-primary" onclick="confirmRule()">保存</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Data Model ───
+const overlayRules = {
+  'GRP_001': [
+    { id: 'o1', name: '房地产业专项', type: 'SPECIAL', method: 'PERCENTAGE', val: 0.01, start: '2026-04-01', end: '2026-12-31', industries: ['J','K'], custType: '', active: true, priority: 1 },
+    { id: 'o2', name: '模型校正', type: 'CALIBRATION', method: 'ADDBP', val: 50, start: '2026-01-01', end: '', industries: [], custType: '', active: true, priority: 2 },
+    { id: 'o3', name: '小微企业纾困', type: 'SPECIAL', method: 'FIXED', val: 1000000, start: '2026-04-01', end: '', industries: ['C','F'], custType: '个人', active: false, priority: 3 }
+  ],
+  'GRP_002': [
+    { id: 'o4', name: '流动性专项', type: 'SPECIAL', method: 'ADDBP', val: 25, start: '2026-03-01', end: '', industries: [], custType: '同业', active: true, priority: 1 }
+  ],
+  'GRP_003': [],
+  'GRP_004': [
+    { id: 'o5', name: '债市波动调整', type: 'CALIBRATION', method: 'PERCENTAGE', val: 0.005, start: '2026-06-01', end: '', industries: [], custType: '', active: true, priority: 1 }
+  ],
+  'GRP_005': [
+    { id: 'o6', name: '小微纾困二期', type: 'SPECIAL', method: 'PERCENTAGE', val: 0.02, start: '2026-05-01', end: '2026-12-31', industries: ['C','F'], custType: '个人', active: true, priority: 1 }
+  ]
+};
+
+const groups = ['GRP_001','GRP_002','GRP_003','GRP_004','GRP_005'];
+const groupNames = { 'GRP_001':'对公业务','GRP_002':'非银金融','GRP_003':'银行同业','GRP_004':'债券业务','GRP_005':'供应链小微' };
+const typeColors = { 'SPECIAL': 'special', 'CALIBRATION': 'calib', 'MODEL_ERROR': 'error' };
+const methodLabels = { 'PERCENTAGE': '百分比', 'ADDBP': '基点', 'FIXED': '固定金额' };
+
+let currentGroup = 'GRP_001';
+let editingRuleId = null;
+let editingIndChange = null;
+
+function renderGroups() {
+  document.getElementById('groupSelector').innerHTML = groups.map(g =>
+    `<div class="group-chip ${g === currentGroup ? 'active' : ''}" onclick="switchGroup('${g}')">${groupNames[g]}</div>`
+  ).join('');
+}
+function switchGroup(g) { currentGroup = g; renderGroups(); renderRules(); }
+
+function renderRules() {
+  const typeF = document.getElementById('typeFilter').value;
+  const statusF = document.getElementById('statusFilter').value;
+  let data = overlayRules[currentGroup] || [];
+  if (typeF) data = data.filter(r => r.type === typeF);
+  if (statusF === 'active') data = data.filter(r => r.active);
+  if (statusF === 'inactive') data = data.filter(r => !r.active);
+
+  const tbody = document.getElementById('rulesBody');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">暂无叠加规则，点击「新增规则」添加</div></td></tr>'; return; }
+  tbody.innerHTML = data.sort((a,b) => a.priority - b.priority).map(r => {
+    const methodStr = r.method === 'PERCENTAGE' ? `+${(r.val*100).toFixed(1)}%` : r.method === 'ADDBP' ? `+${r.val}bp` : `¥${r.val.toLocaleString()}`;
+    const conditionStr = [r.industries.length ? `行业∈{${r.industries.join(',')}}` : '', r.custType ? `客户=${r.custType}` : ''].filter(Boolean).join(' · ') || '<span style="color:#9ca3af;">全部借据</span>';
+    return `<tr>
+      <td><strong>${r.priority}</strong></td>
+      <td style="font-weight:500;">${r.name}${!r.active ? ' <span style="color:#9ca3af;font-size:11px;">(停用)</span>' : ''}</td>
+      <td><span class="rule-tag ${typeColors[r.type] || 'special'}">${r.type}</span></td>
+      <td>${methodStr}</td>
+      <td style="font-size:12px;">${conditionStr}</td>
+      <td><button class="btn-text" onclick="openRuleModal('${r.id}')">编辑</button><button class="btn-text danger" onclick="toggleActive('${r.id}')">${r.active ? '停用' : '启用'}</button><button class="btn-text danger" onclick="deleteRule('${r.id}')">删除</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleActive(id) {
+  const r = (overlayRules[currentGroup] || []).find(x => x.id === id);
+  if (r) { r.active = !r.active; renderRules(); showToast(r.active ? '已启用' : '已停用'); }
+}
+
+function deleteRule(id) {
+  if (!confirm('确定删除这条叠加规则？')) return;
+  overlayRules[currentGroup] = (overlayRules[currentGroup] || []).filter(x => x.id !== id);
+  renderRules();
+  showToast('已删除');
+}
+
+// ─── Rule Modal ───
+function openRuleModal(id) {
+  editingRuleId = id || null;
+  document.getElementById('ruleModalTitle').textContent = id ? '编辑叠加规则' : '新增叠加规则';
+  if (id) {
+    const r = (overlayRules[currentGroup] || []).find(x => x.id === id);
+    if (r) {
+      document.getElementById('ruleName').value = r.name;
+      document.getElementById('rulePriority').value = r.priority;
+      document.getElementById('ruleType').value = r.type;
+      document.getElementById('ruleMethod').value = r.method;
+      document.getElementById('ruleMethodVal').value = r.val;
+      document.getElementById('ruleStart').value = r.start;
+      document.getElementById('ruleEnd').value = r.end || '';
+      document.querySelectorAll('.ind-chk').forEach(c => c.checked = r.industries.includes(c.value));
+      document.getElementById('ruleCustType').value = r.custType;
+    }
+  } else {
+    document.getElementById('ruleName').value = '';
+    document.getElementById('rulePriority').value = ((overlayRules[currentGroup]||[]).length) + 1;
+    document.getElementById('ruleType').value = 'SPECIAL';
+    document.getElementById('ruleMethod').value = 'PERCENTAGE';
+    document.getElementById('ruleMethodVal').value = 0.01;
+    document.getElementById('ruleStart').value = '2026-04-01';
+    document.getElementById('ruleEnd').value = '';
+    document.querySelectorAll('.ind-chk').forEach(c => c.checked = false);
+    document.getElementById('ruleCustType').value = '';
+  }
+  toggleMethodInput();
+  updateCondPreview();
+  openModal('ruleModal');
+}
+
+function toggleMethodInput() {
+  const m = document.getElementById('ruleMethod').value;
+  const label = document.getElementById('methodLabel');
+  const input = document.getElementById('ruleMethodVal');
+  if (m === 'PERCENTAGE') { label.textContent = '调整值 (+1% = 0.01)'; input.step = '0.0001'; }
+  else if (m === 'ADDBP') { label.textContent = '调整值 (基点)'; input.step = '1'; }
+  else { label.textContent = '调整值 (元)'; input.step = '0.01'; }
+  if (!editingRuleId) input.value = m === 'PERCENTAGE' ? 0.01 : m === 'ADDBP' ? 50 : 1000000;
+}
+
+function updateCondPreview() {
+  const industries = [];
+  document.querySelectorAll('.ind-chk:checked').forEach(c => { if (c.value) industries.push(c.value); });
+  const custType = document.getElementById('ruleCustType').value;
+  const cond = {};
+  if (industries.length) cond.industry_codes = industries;
+  if (custType) cond.customer_type = custType;
+  document.getElementById('condPreview').textContent = JSON.stringify(cond, null, 2);
+}
+
+document.querySelectorAll('.ind-chk, #ruleCustType').forEach(el => {
+  el.addEventListener('change', updateCondPreview);
+});
+
+function confirmRule() {
+  const name = document.getElementById('ruleName').value.trim();
+  if (!name) { showToast('请输入规则名称'); return; }
+  const priority = parseInt(document.getElementById('rulePriority').value) || 99;
+  const type = document.getElementById('ruleType').value;
+  const method = document.getElementById('ruleMethod').value;
+  const val = parseFloat(document.getElementById('ruleMethodVal').value) || 0;
+  const start = document.getElementById('ruleStart').value;
+  const end = document.getElementById('ruleEnd').value;
+  const industries = [];
+  document.querySelectorAll('.ind-chk:checked').forEach(c => { if (c.value) industries.push(c.value); });
+  const custType = document.getElementById('ruleCustType').value;
+
+  if (editingRuleId) {
+    const r = (overlayRules[currentGroup] || []).find(x => x.id === editingRuleId);
+    if (r) { Object.assign(r, { name, priority, type, method, val, start, end, industries, custType }); }
+  } else {
+    if (!overlayRules[currentGroup]) overlayRules[currentGroup] = [];
+    overlayRules[currentGroup].push({ id: 'o' + Date.now().toString(36), name, priority, type, method, val, start, end: end || '', industries, custType, active: true });
+  }
+  closeModal('ruleModal');
+  renderRules();
+  showToast(editingRuleId ? '规则已更新' : '规则已新增');
+}
+
+// ─── Hit Test ───
+const testAssets = {
+  'AST20260618000001': { name: 'XXX地产公司', industry: 'J', custType: '对公' },
+  'AST20260618000002': { name: 'YYY制造集团', industry: 'C', custType: '对公' },
+  'AST20260618000003': { name: 'ZZZ科技公司', industry: 'I', custType: '个人' }
+};
+
+function queryTestAsset() {
+  const id = document.getElementById('testAssetId').value.trim();
+  const asset = testAssets[id];
+  if (asset) document.getElementById('testAssetInfo').textContent = `${asset.name} · 行业：${asset.industry} · ${asset.custType}`;
+  else document.getElementById('testAssetInfo').textContent = '未找到该借据';
+  document.getElementById('hitResult').style.display = 'none';
+}
+
+function runHitTest() {
+  const id = document.getElementById('testAssetId').value.trim();
+  const asset = testAssets[id];
+  if (!asset) { showToast('请先查询有效的借据'); return; }
+  const rules = overlayRules[currentGroup] || [];
+  const hitRules = rules.filter(r => r.active).filter(r => {
+    const indMatch = !r.industries.length || r.industries.includes(asset.industry);
+    const custMatch = !r.custType || r.custType === asset.custType;
+    return indMatch && custMatch;
+  });
+
+  const container = document.getElementById('hitContent');
+  const result = document.getElementById('hitResult');
+  if (!hitRules.length) {
+    container.innerHTML = '<div style="grid-column:1/-1;padding:12px;text-align:center;color:#9ca3af;">无命中规则</div>';
+  } else {
+    container.innerHTML = hitRules.sort((a,b) => a.priority - b.priority).map(r => {
+      const methodStr = r.method === 'PERCENTAGE' ? `+${(r.val*100).toFixed(1)}%` : r.method === 'ADDBP' ? `+${r.val}bp` : `¥${r.val.toLocaleString()}`;
+      return `<div style="padding:10px 12px;background:var(--color-primary-light);border-radius:8px;border:1px solid #d1ddfb;">
+        <div style="font-size:11px;color:#1243af;">命中规则 · 优先级 ${r.priority}</div>
+        <div style="font-size:14px;font-weight:600;color:#1243af;margin-top:2px;">${r.name}</div>
+        <div style="font-size:12px;color:#1243af;margin-top:2px;">${r.type} · ${methodStr}</div>
+      </div>
+      <div style="padding:10px 12px;background:#fff;border-radius:8px;border:1px solid #e5e7eb;">
+        <div style="font-size:11px;color:#9ca3af;">叠加效果</div>
+        <div style="font-size:14px;font-weight:500;margin-top:2px;">ECL 调整：${r.method === 'FIXED' ? '¥' + r.val.toLocaleString() : r.method === 'ADDBP' ? r.val + 'bp' : (r.val*100).toFixed(1) + '%'}</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px;">叠加前 ¥123,456.00 → 叠加后 ¥${r.method === 'FIXED' ? (123456 + r.val).toLocaleString() : ((r.method === 'PERCENTAGE' ? 123456 * (1 + r.val) : 123456)).toFixed(2)}</div>
+      </div>`;
+    }).join('');
+  }
+  result.style.display = 'block';
+  showToast(`命中 ${hitRules.length} 条规则`);
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+renderGroups(); renderRules();
+</script>
+
+<style>.iframed .global-context{display:none!important}</style>
+<script>(function(){if(window.self!==window.top)document.documentElement.className+=" iframed"})();</script>
+</body>
+</html>

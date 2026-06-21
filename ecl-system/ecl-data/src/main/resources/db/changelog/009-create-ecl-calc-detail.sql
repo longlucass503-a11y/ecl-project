@@ -1,0 +1,31 @@
+--liquibase formatted sql
+--changeset ecl:009
+CREATE TABLE tbl_ecl_calc_detail (
+    detail_id        BIGINT         AUTO_INCREMENT PRIMARY KEY,
+    job_id           VARCHAR(32)    NOT NULL,
+    asset_id         VARCHAR(32)    NOT NULL,
+    scheme_id        VARCHAR(32)    NOT NULL,
+    calc_date        DATE           NOT NULL,
+    input_data       JSON           NOT NULL,
+    group_id         VARCHAR(32),
+    group_exception  VARCHAR(8),
+    stage_result     VARCHAR(8),
+    trigger_type     VARCHAR(32),
+    stage_exception  VARCHAR(8),
+    pd_details       JSON,
+    pd_exception     VARCHAR(8),
+    ead_total        DECIMAL(18,2),
+    ead_exception    VARCHAR(8),
+    lgd_value        DECIMAL(10,6),
+    lgd_exception    VARCHAR(8),
+    ecl_weighted     DECIMAL(18,2),
+    ecl_details      JSON,
+    ecl_exception    VARCHAR(8),
+    ecl_overlay_total DECIMAL(18,2),
+    ecl_final        DECIMAL(18,2),
+    selected_overlay_id  BIGINT,
+    overlay_exception VARCHAR(8),
+    calc_status      VARCHAR(16),
+    error_summary    JSON,
+    UNIQUE KEY uk_job_asset (job_id, asset_id)
+);

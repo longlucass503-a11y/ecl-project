@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCF 参数配置 - ECL 系统</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC",sans-serif;background:#f5f6fa;color:#1a1d29;line-height:1.5}
+  :root{--color-primary:#1a56db;--color-primary-light:#e8effd;--color-primary-dark:#1243af;--color-success:#059669;--color-warning:#d97706;--color-danger:#dc2626;--color-bg:#f5f6fa;--color-surface:#fff;--color-border:#e5e7eb;--color-text-secondary:#6b7280;--color-text-muted:#9ca3af;--radius-sm:6px;--radius-md:10px;--shadow-sm:0 1px 2px rgba(0,0,0,.04)}
+  .global-context{background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 32px;display:flex;align-items:center;gap:24px;box-shadow:var(--shadow-sm)}
+  .context-logo{font-size:16px;font-weight:700;color:#1a56db;letter-spacing:-.3px}
+  .context-logo span{color:#1a1d29;font-weight:400}
+  .page{max-width:1280px;margin:0 auto;padding:24px 32px}
+  .page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
+  .page-header h1{font-size:22px;font-weight:600;letter-spacing:-.3px}
+  .page-header .sub{font-size:14px;color:#6b7280;margin-top:4px}
+  .panel{background:#fff;border-radius:10px;box-shadow:var(--shadow-sm);border:1px solid #e5e7eb;margin-bottom:20px}
+  .panel-header{padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+  .panel-header h2{font-size:15px;font-weight:600}
+  .panel-body{padding:20px}
+  .panel-body-nopad{padding:0}
+  .btn-ghost{background:none;border:none;padding:6px 12px;border-radius:6px;font-size:13px;color:#6b7280;cursor:pointer}
+  .btn-ghost:hover{background:#f5f6fa}
+  .btn-primary{background:#1a56db;color:#fff;border:none;padding:6px 16px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer}
+  .btn-primary:hover{background:#1243af}
+  .btn-text{background:none;border:none;padding:4px 8px;border-radius:6px;font-size:12px;color:#6b7280;cursor:pointer}
+  .btn-text:hover{color:#1a56db;background:#e8effd}
+  .btn-text.danger:hover{color:#dc2626;background:#fee2e2}
+  .btn-outline{background:#fff;border:1px solid #e5e7eb;padding:4px 12px;border-radius:6px;font-size:12px;color:#6b7280;cursor:pointer}
+  .btn-outline:hover{border-color:#1a56db;color:#1a56db}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:12px;font-weight:600;color:#6b7280;padding:8px 12px;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+  td{padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px}
+  tr:hover td{background:#f9fafb}
+  .mono{font-family:"SF Mono","JetBrains Mono",monospace;font-size:12px}
+  .cell-editable{cursor:pointer;padding:4px 8px;border-radius:4px;border:1px solid transparent;display:inline-block;min-width:70px;text-align:right;transition:all .12s}
+  .cell-editable:hover{background:#fff;border-color:#e5e7eb;box-shadow:0 0 0 2px #e8effd}
+  .cell-editable:focus{background:#fff;border-color:#1a56db;box-shadow:0 0 0 2px #e8effd;outline:none}
+  .info-note{font-size:12px;color:#9ca3af;padding:8px 12px;border-top:1px solid #e5e7eb;background:#f9fafb}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1000;align-items:center;justify-content:center}
+  .modal-overlay.show{display:flex}
+  .modal-box{background:#fff;border-radius:12px;width:520px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.15);overflow:hidden}
+  .modal-head{padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+  .modal-head h3{font-size:15px;font-weight:600}
+  .modal-close{background:none;border:none;font-size:18px;color:#9ca3af;cursor:pointer;padding:4px}
+  .modal-close:hover{color:#1a1d29}
+  .modal-body{padding:20px;max-height:70vh;overflow-y:auto}
+  .modal-foot{padding:12px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:8px}
+  .form-group{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+  .form-group label{font-size:12px;color:#6b7280;font-weight:500}
+  .form-group select,.form-group input{border:1px solid #e5e7eb;border-radius:6px;padding:6px 10px;font-size:13px}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .toast{position:fixed;bottom:24px;right:24px;background:#1a1d29;color:#e1e7ef;padding:10px 18px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none}
+  .toast.show{opacity:1;transform:translateY(0)}
+  .empty-state{padding:40px;text-align:center;color:#9ca3af;font-size:13px}
+</style>
+</head>
+<body>
+<div class="global-context"><div class="context-logo">ECL <span>减值计量系统</span></div></div>
+<div class="page">
+  <div class="page-header">
+    <div><h1>CCF 参数配置</h1><div class="sub">信用转换系数配置，按产品类型 + 承诺类型 + 期限区间匹配，不依赖风险分组</div></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-outline" onclick="showToast('请选择 Excel 文件上传')">📄 批量导入</button>
+      <button class="btn-primary" onclick="openCurveModal()">⊕ 新增曲线</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>CCF 曲线列表</h2>
+      <span style="font-size:12px;color:#9ca3af">当前方案：2026年Q3 · 不依赖风险分组</span>
+    </div>
+    <div class="panel-body-nopad">
+      <table>
+        <thead><tr><th>产品类型</th><th>承诺类型</th><th>期限下限（天）</th><th>期限上限（天）</th><th>CCF 值</th><th style="width:100px;">操作</th></tr></thead>
+        <tbody id="curveBody"></tbody>
+      </table>
+      <div class="info-note">引擎匹配规则：product_type + commitment_type + 期限区间 · 99999 表示"以上"</div>
+    </div>
+  </div>
+</div>
+
+<!-- Curve Modal -->
+<div class="modal-overlay" id="curveModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3 id="curveModalTitle">新增 CCF 曲线</h3><button class="modal-close" onclick="closeModal('curveModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>产品类型</label><select id="curveProd"><option>信用证 (LC)</option><option>保函</option><option>贷款承诺</option><option>银行承兑汇票</option><option>商业承兑汇票</option></select></div>
+        <div class="form-group"><label>承诺类型</label><select id="curveCommit"><option>不可撤销</option><option>可撤销</option></select></div>
+        <div class="form-group"><label>期限下限（天）</label><input type="number" id="curveMin" min="0" value="0"></div>
+        <div class="form-group"><label>期限上限（天）</label><input type="number" id="curveMax" min="0" value="365"></div>
+        <div class="form-group"><label>CCF 系数 (0.0000 ~ 1.0000)</label><input type="number" id="curveVal" step="0.0001" min="0" max="1" value="0.5000"></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn-ghost" onclick="closeModal('curveModal')">取消</button><button class="btn-primary" onclick="confirmCurve()">保存</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Data ───
+let curves = [
+  { id: 'c1', prod: '信用证 (LC)', commit: '不可撤销', min: 0, max: 365, val: 0.5000 },
+  { id: 'c2', prod: '信用证 (LC)', commit: '不可撤销', min: 366, max: 99999, val: 0.7000 },
+  { id: 'c3', prod: '保函', commit: '不可撤销', min: 0, max: 365, val: 0.3000 },
+  { id: 'c4', prod: '保函', commit: '不可撤销', min: 366, max: 99999, val: 0.5000 },
+  { id: 'c5', prod: '保函', commit: '可撤销', min: 0, max: 99999, val: 0.0000 },
+  { id: 'c6', prod: '贷款承诺', commit: '不可撤销', min: 0, max: 365, val: 0.2000 },
+  { id: 'c7', prod: '贷款承诺', commit: '不可撤销', min: 366, max: 99999, val: 0.4000 },
+  { id: 'c8', prod: '贷款承诺', commit: '可撤销', min: 0, max: 99999, val: 0.0000 },
+  { id: 'c9', prod: '银行承兑汇票', commit: '不可撤销', min: 0, max: 90, val: 0.1000 },
+  { id: 'c10', prod: '银行承兑汇票', commit: '不可撤销', min: 91, max: 180, val: 0.2000 }
+];
+
+let editingId = null;
+
+function render() {
+  const tbody = document.getElementById('curveBody');
+  if (!curves.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">暂无曲线，点击「新增曲线」添加</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = curves.sort((a, b) => {
+    if (a.prod !== b.prod) return a.prod.localeCompare(b.prod);
+    return a.min - b.min;
+  }).map(r =>
+    `<tr>
+      <td style="font-weight:500;">${r.prod}</td>
+      <td>${r.commit}</td>
+      <td class="mono">${r.min}</td>
+      <td class="mono">${r.max}</td>
+      <td><span class="mono cell-editable" contenteditable onblur="editVal('${r.id}', this.textContent)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${r.val.toFixed(4)}</span></td>
+      <td><button class="btn-text" onclick="openCurveModal('${r.id}')">编辑</button><button class="btn-text danger" onclick="deleteCurve('${r.id}')">删除</button></td>
+    </tr>`
+  ).join('');
+}
+
+function editVal(id, val) {
+  const r = curves.find(x => x.id === id);
+  if (r) { r.val = Math.min(1, Math.max(0, parseFloat(val) || 0)); render(); showToast('已更新'); }
+}
+
+function openCurveModal(id) {
+  editingId = id || null;
+  document.getElementById('curveModalTitle').textContent = id ? '编辑 CCF 曲线' : '新增 CCF 曲线';
+  if (id) {
+    const r = curves.find(x => x.id === id);
+    if (r) {
+      document.getElementById('curveProd').value = r.prod;
+      document.getElementById('curveCommit').value = r.commit;
+      document.getElementById('curveMin').value = r.min;
+      document.getElementById('curveMax').value = r.max;
+      document.getElementById('curveVal').value = r.val;
+    }
+  } else {
+    document.getElementById('curveProd').value = '信用证 (LC)';
+    document.getElementById('curveCommit').value = '不可撤销';
+    document.getElementById('curveMin').value = 0;
+    document.getElementById('curveMax').value = 365;
+    document.getElementById('curveVal').value = 0.5000;
+  }
+  openModal('curveModal');
+}
+
+function confirmCurve() {
+  const prod = document.getElementById('curveProd').value;
+  const commit = document.getElementById('curveCommit').value;
+  const min = parseInt(document.getElementById('curveMin').value) || 0;
+  const max = parseInt(document.getElementById('curveMax').value) || 99999;
+  const val = Math.min(1, Math.max(0, parseFloat(document.getElementById('curveVal').value) || 0));
+
+  if (editingId) {
+    const r = curves.find(x => x.id === editingId);
+    if (r) { r.prod = prod; r.commit = commit; r.min = min; r.max = max; r.val = val; }
+  } else {
+    curves.push({ id: 'c' + Date.now().toString(36), prod, commit, min, max, val });
+  }
+  closeModal('curveModal');
+  render();
+  showToast(editingId ? '曲线已更新' : '曲线已新增');
+}
+
+function deleteCurve(id) {
+  if (!confirm('确定删除这条 CCF 曲线？')) return;
+  curves = curves.filter(x => x.id !== id);
+  render();
+  showToast('已删除');
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+render();
+</script>
+
+<style>.iframed .global-context{display:none!important}</style>
+<script>(function(){if(window.self!==window.top)document.documentElement.className+=" iframed"})();</script>
+</body>
+</html>

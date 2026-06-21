@@ -122,7 +122,7 @@ const RiskGroupConfig: React.FC = () => {
 
   if (!effectiveSchemeId && !selectedSchemeId) {
     return (
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 32px' }}>
+      <div className="ecl-page">
         <PageHeader title="风险分组配置" subtitle="管理风险分组主数据及匹配规则" />
         <Panel>
           <Empty description="请先选择 ECL 方案">
@@ -143,7 +143,7 @@ const RiskGroupConfig: React.FC = () => {
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 32px' }}>
+    <div className="ecl-page">
       <PageHeader
         title="风险分组配置"
         subtitle="管理风险分组主数据及匹配规则，系统根据业务维度自动将借据归类到对应分组"
@@ -163,9 +163,9 @@ const RiskGroupConfig: React.FC = () => {
         </Panel>
       ) : (
         <Panel noPadding>
-          <div className="split-layout">
+          <div className="split-layout ecl-split-layout">
             {/* Left: group list */}
-            <div className="split-sidebar">
+            <div className="split-sidebar ecl-split-sidebar">
               <div className="split-sidebar-header">
                 <span>风险分组</span>
                 <span style={{ fontWeight: 400, color: 'var(--color-text-muted)' }}>{groups.length} 个</span>
@@ -189,10 +189,10 @@ const RiskGroupConfig: React.FC = () => {
             </div>
 
             {/* Right: rules table */}
-            <div className="split-main">
-              <div className="split-main-header">
+            <div className="split-main ecl-split-main">
+              <div className="split-main-header ecl-split-header">
                 <div>
-                  <span className="split-main-title">{selectedGroup?.groupName || '选择分组'}</span>
+                  <span className="split-main-title ecl-split-title">{selectedGroup?.groupName || '选择分组'}</span>
                   <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginLeft: 8 }}>匹配规则</span>
                 </div>
                 <Space>
@@ -239,11 +239,11 @@ const RiskGroupConfig: React.FC = () => {
                     </tr>
                   ))}
                   {details.length === 0 && (
-                    <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 40 }}>暂无匹配规则，请点击「新增规则」</td></tr>
+                    <tr><td colSpan={8}><div className="ecl-empty-row">暂无匹配规则，请点击「新增规则」</div></td></tr>
                   )}
                 </tbody>
               </table>
-              <div className="info-note">空值字段 = 通配（不限制该维度）· 6 个维度全空禁止保存 · 引擎按优先级逐条匹配</div>
+              <div className="info-note ecl-info-note">空值字段 = 通配（不限制该维度）· 6 个维度全空禁止保存 · 引擎按优先级逐条匹配</div>
             </div>
           </div>
         </Panel>

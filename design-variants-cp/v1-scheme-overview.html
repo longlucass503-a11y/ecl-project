@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案总览 - ECL 系统</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC",sans-serif;background:var(--color-bg);color:var(--color-text);line-height:1.5}
+  :root{--color-primary:#2563eb;--color-primary-light:#eff3ff;--color-primary-dark:#1d4ed8;--color-success:#059669;--color-warning:#d97706;--color-danger:#dc2626;--color-bg:#f8f9fb;--color-bg-alt:#f1f3f6;--color-surface:#fff;--color-surface-hover:#f8f9fb;--color-border:#e5e7eb;--color-border-light:#f0f1f3;--color-text:#111827;--color-text-secondary:#6b7280;--color-text-muted:#9ca3af;--radius-sm:6px;--radius-md:8px;--radius-lg:12px;--radius-full:9999px;--shadow-xs:0 1px 2px rgba(0,0,0,.03);--shadow-sm:0 1px 3px rgba(0,0,0,.04),0 1px 2px rgba(0,0,0,.03);--shadow-md:0 4px 12px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.03);--shadow-lg:0 10px 30px rgba(0,0,0,.06),0 1px 3px rgba(0,0,0,.04);--transition-fast:150ms cubic-bezier(.16,1,.3,1)}
+  .global-context{background:var(--color-surface);border-bottom:1px solid #e5e7eb;padding:12px 32px;display:flex;align-items:center;gap:24px;box-shadow:var(--shadow-xs)}
+  .context-logo{font-size:15px;font-weight:700;color:var(--color-primary);letter-spacing:-.02em}
+  .context-logo span{color:var(--color-text);font-weight:400}
+  .page{max-width:1280px;margin:0 auto;padding:24px 32px}
+  .page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
+  .page-header h1{font-size:22px;font-weight:650;letter-spacing:-.02em;color:var(--color-text)}
+  .panel{background:var(--color-surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-xs);border:1px solid #e5e7eb;margin-bottom:20px}
+  .panel-header{padding:14px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+  .panel-header h2{font-size:14px;font-weight:600;color:var(--color-text);letter-spacing:-.01em}
+  .panel-body{padding:20px}
+  .btn-ghost{background:none;border:none;padding:5px 10px;border-radius:var(--radius-sm);font-size:13px;color:var(--color-text-secondary);cursor:pointer}
+  .btn-ghost:hover{background:var(--color-bg)}
+  .btn-primary{background:var(--color-primary);color:#fff;border:none;padding:5px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer}
+  .btn-primary:hover{background:var(--color-primary-dark);box-shadow:0 2px 8px rgba(37,99,235,.25)}
+  .btn-text{background:none;border:none;padding:3px 8px;border-radius:var(--radius-sm);font-size:12px;color:var(--color-text-secondary);cursor:pointer}
+  .btn-text:hover{color:var(--color-primary);background:var(--color-primary-light)}
+  .btn-outline{background:var(--color-surface);border:1px solid #e5e7eb;padding:4px 10px;border-radius:var(--radius-sm);font-size:12px;color:var(--color-text-secondary);cursor:pointer}
+  .status-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:var(--radius-full);font-size:12px;font-weight:500}
+  .st-active{background:#ecfdf5;color:#059669}
+  .st-draft{background:#f3f4f6;color:var(--color-text-secondary)}
+  .module-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .module-card{padding:14px;border:1px solid #e5e7eb;border-radius:var(--radius-lg);cursor:pointer;transition:all .12s}
+  .module-card:hover{border-color:var(--color-primary);box-shadow:var(--shadow-xs)}
+  .module-card .mc-icon{width:30px;height:30px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:14px;margin-bottom:6px}
+  .module-card .mc-title{font-size:14px;font-weight:500}
+  .module-card .mc-desc{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+  .module-card .mc-status{font-size:11px;color:var(--color-text-muted);margin-top:4px}
+  .info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .info-item .lbl{font-size:11px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.3px}
+  .info-item .val{font-size:15px;font-weight:600;margin-top:3px}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--color-text);color:#f1f5f9;padding:10px 18px;border-radius:var(--radius-md);font-size:13px;z-index:9999;opacity:0;transform:translateY(10px);transition:all .25s cubic-bezier(.16,1,.3,1);pointer-events:none}
+  .toast.show{opacity:1;transform:translateY(0)}
+  .breadcrumb{font-size:13px;color:var(--color-text-secondary);margin-bottom:16px;display:flex;align-items:center;gap:6px}
+  .breadcrumb a{color:var(--color-text-secondary);text-decoration:none;cursor:pointer}
+  .breadcrumb a:hover{color:var(--color-primary)}
+</style>
+</head>
+<body>
+<div class="global-context"><div class="context-logo">ECL <span>减值计量系统</span></div></div>
+<div class="page">
+  <div class="breadcrumb"><a onclick="showToast('返回方案列表')">方案管理</a> <span style="color:var(--color-text-muted);">/</span> <span id="bcScheme">SCH_003 · 2026年Q3 v2.1</span></div>
+  <div class="panel">
+    <div class="panel-body">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <h1 id="ovName" style="font-size:20px;font-weight:600;">2026年Q3 v2.1</h1>
+            <span id="ovStatus" class="status-tag st-active">● 已生效</span>
+          </div>
+          <div style="font-size:13px;color:var(--color-text-secondary);margin-top:4px;">方案编码：<span id="ovCode">SCH_003</span> · 版本 <span id="ovVer">2.1</span></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-outline" onclick="showToast('编辑方案弹窗已打开')" style="font-size:12px;">编辑</button>
+          <button class="btn-primary" style="font-size:12px;" onclick="showToast('已基于本方案复制新方案')">基于本方案复制</button>
+        </div>
+      </div>
+      <div class="info-grid">
+        <div class="info-item"><div class="lbl">生效日期</div><div class="val" id="ovDate">2026-06-01</div></div>
+        <div class="info-item"><div class="lbl">创建人</div><div class="val">张工（模型组）</div></div>
+        <div class="info-item"><div class="lbl">创建时间</div><div class="val">2026-05-25 14:32</div></div>
+        <div class="info-item"><div class="lbl">风险分组</div><div class="val">5 个</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-header"><h2>方案级缺省参数</h2><span style="font-size:12px;color:var(--color-text-muted);">点击可编辑</span></div>
+    <div class="panel-body">
+      <div class="info-grid">
+        <div class="info-item" onclick="editParam('折扣率')" style="cursor:pointer;"><div class="lbl">折扣率 (discount_rate)</div><div class="val" style="color:var(--color-primary);">3.50%</div></div>
+        <div class="info-item" onclick="editParam('默认 CCF')" style="cursor:pointer;"><div class="lbl">默认 CCF (default_ccf)</div><div class="val" style="color:var(--color-primary);">0.5000</div></div>
+        <div class="info-item" onclick="editParam('默认 LGD')" style="cursor:pointer;"><div class="lbl">默认 LGD (default_lgd)</div><div class="val" style="color:var(--color-primary);">0.4500</div></div>
+        <div class="info-item"><div class="lbl">变更说明</div><div class="val" style="font-weight:400;font-size:13px;">基于 Q2 方案调整 PD 和 LGD 参数</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-header"><h2>参数模块</h2><span style="font-size:12px;color:var(--color-text-muted);">点击进入详细配置</span></div>
+    <div class="panel-body">
+      <div class="module-grid">
+        <div class="module-card" onclick="navTo('risk-group')"><div class="mc-icon" style="background:#dbeafe;color:#2563eb;">📊</div><div class="mc-title">风险分组</div><div class="mc-desc">5 个分组 · 15 条规则</div><div class="mc-status">已配置</div></div>
+        <div class="module-card" onclick="navTo('stage')"><div class="mc-icon" style="background:#d1fae5;color:#059669;">🧩</div><div class="mc-title">阶段划分</div><div class="mc-desc">3 条 FORWARD · 2 条 ROLLBACK</div><div class="mc-status">已配置</div></div>
+        <div class="module-card" onclick="navTo('pd')"><div class="mc-icon" style="background:#fef3c7;color:#d97706;">📈</div><div class="mc-title">PD 参数</div><div class="mc-desc">3 个情景 · 9 个评级</div><div class="mc-status">已配置</div></div>
+        <div class="module-card" onclick="navTo('lgd')"><div class="mc-icon" style="background:#ede9fe;color:#7c3aed;">📉</div><div class="mc-title">LGD 参数</div><div class="mc-desc">6 条基准曲线 · 5 条折扣率</div><div class="mc-status">已配置</div></div>
+        <div class="module-card" onclick="navTo('ccf')"><div class="mc-icon" style="background:#fce7f3;color:#db2777;">📐</div><div class="mc-title">CCF 参数</div><div class="mc-desc">10 条曲线</div><div class="mc-status">已配置</div></div>
+        <div class="module-card" onclick="navTo('overlay')"><div class="mc-icon" style="background:#f0f0f0;color:var(--color-text-secondary);">🛡️</div><div class="mc-title">管理层叠加</div><div class="mc-desc">暂无规则</div><div class="mc-status" style="color:#d97706;">未配置</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+function navTo(page) {
+  try { parent.switchToParam(page); } catch(e) { showToast('跳转到 ' + page); }
+}
+function editParam(name) {
+  const v = prompt(`请输入${name}的值：`);
+  if (v !== null && v.trim()) showToast(`${name} 已更新为 ${v.trim()}`);
+}
+</script>
+<script>if(window.self!==window.top)document.documentElement.className+=' iframed'</script>
+<style>.iframed .global-context{display:none!important}</style>
+</body>
+</html>

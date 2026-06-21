@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: ecl-system
+  profiles:
+    active: dev
+  datasource:
+    url: jdbc:h2:mem:ecl;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+server:
+  port: 8080
+logging:
+  level:
+    com.bank.ecl: DEBUG
+    org.mybatis: DEBUG
+# DB type for MyBatis-Plus pagination: H2 (dev/test) / MYSQL (production)
+ecl:
+  db-type: H2

@@ -27,7 +27,7 @@ import { useSearchParams, useOutletContext } from 'react-router-dom';
 import ReactEChartsCore from 'echarts-for-react';
 import { schemeApi, type SchemeVO } from '../../api/scheme';
 import { pdApi, type ScenarioVO, type PdCurveVO } from '../../api/pd';
-import { PageHeader, Panel } from '../../components';
+import { GroupSelector, PageHeader, Panel } from '../../components';
 import { riskGroupApi, type RiskGroupVO } from '../../api/riskGroup';
 
 const PdConfig: React.FC = () => {
@@ -363,7 +363,7 @@ const PdConfig: React.FC = () => {
   // ─── 渲染 ───
   if (!selectedSchemeId) {
     return (
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 32px' }}>
+      <div className="ecl-page">
         <PageHeader
           title="PD 参数配置"
           subtitle="按风险分组管理 PD 曲线，每个分组可独立配置情景"
@@ -389,9 +389,17 @@ const PdConfig: React.FC = () => {
   // 计算剩余权重
   const totalWeight = scenarios.reduce((s, c) => s + c.weight, 0);
   const remainingWeight = Math.max(0, +(1 - totalWeight).toFixed(4));
+  const groupSelectorItems = [
+    { groupId: '', groupName: '全部分组', groupCode: 'ALL' },
+    ...groups.map((g) => ({
+      groupId: g.groupId,
+      groupName: g.groupName,
+      groupCode: g.groupCode,
+    })),
+  ];
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 32px' }}>
+    <div className="ecl-page">
       <PageHeader
         title="PD 参数配置"
         subtitle="按风险分组管理 PD 曲线，每个分组可独立配置情景"
@@ -407,19 +415,6 @@ const PdConfig: React.FC = () => {
                 value: s.schemeId,
               }))}
             />
-            {groups.length > 0 && (
-              <Select
-                style={{ width: 240 }}
-                placeholder="选择风险分组（可选）"
-                value={selectedGroupId || undefined}
-                onChange={setSelectedGroupId}
-                allowClear
-                options={groups.map((g) => ({
-                  label: `${g.groupName}(${g.groupCode})`,
-                  value: g.groupId,
-                }))}
-              />
-            )}
             <Button icon={<BarChartOutlined />} onClick={handleOpenMatrix}>
               矩阵视图
             </Button>
@@ -437,6 +432,14 @@ const PdConfig: React.FC = () => {
           </Space>
         }
       />
+
+      {groups.length > 0 && (
+        <GroupSelector
+          groups={groupSelectorItems}
+          selectedId={selectedGroupId}
+          onChange={setSelectedGroupId}
+        />
+      )}
 
       {/* 情景列表 */}
       <Panel title="情景管理">
@@ -578,7 +581,7 @@ const PdConfig: React.FC = () => {
                 </tr>
               ))}
               {curves.length === 0 && (
-                <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 40 }}>暂无曲线数据</td></tr>
+                <tr><td colSpan={3}><div className="ecl-empty-row">暂无曲线数据</div></td></tr>
               )}
             </tbody>
           </table>

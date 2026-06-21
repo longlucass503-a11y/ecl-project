@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECL 系统设计 - 方案 V2 深色仪表盘</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+    background: #0f1117;
+    color: #e1e7ef;
+    line-height: 1.5;
+  }
+
+  :root {
+    --color-bg: #0f1117;
+    --color-surface: #1a1d27;
+    --color-surface-hover: #222533;
+    --color-border: #2a2d3a;
+    --color-primary: #3b82f6;
+    --color-primary-glow: rgba(59,130,246,0.15);
+    --color-success: #22c55e;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    --color-text: #e1e7ef;
+    --color-text-secondary: #8b8fa3;
+    --color-text-muted: #5c5f73;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+    --shadow-glow: 0 0 20px rgba(59,130,246,0.08);
+  }
+
+  /* ─── Layout ─── */
+  .app-layout { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 240px;
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sidebar-logo {
+    padding: 0 20px 16px;
+    font-size: 18px;
+    font-weight: 700;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sidebar-logo .logo-icon {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: white;
+  }
+  .sidebar-nav { flex: 1; padding: 12px 0; }
+  .nav-section { margin-bottom: 8px; }
+  .nav-section-title {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 8px 20px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 20px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+  }
+  .nav-item:hover { background: var(--color-surface-hover); color: var(--color-text); }
+  .nav-item.active {
+    background: var(--color-primary-glow);
+    color: var(--color-primary);
+    border-left-color: var(--color-primary);
+    font-weight: 500;
+  }
+  .nav-item .nav-badge {
+    margin-left: auto;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: var(--color-danger);
+    color: white;
+  }
+  .sidebar-scheme {
+    padding: 16px 20px;
+    border-top: 1px solid var(--color-border);
+    margin-top: auto;
+  }
+  .sidebar-scheme .scheme-label {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    margin-bottom: 4px;
+  }
+  .sidebar-scheme .scheme-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-hover);
+  }
+  .sidebar-scheme .scheme-name { font-size: 13px; font-weight: 500; }
+  .sidebar-scheme .scheme-status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+  }
+  .sidebar-scheme .scheme-status-dot.effective { background: var(--color-success); box-shadow: 0 0 6px rgba(34,197,94,0.4); }
+
+  /* ─── Main ─── */
+  .main-content { flex: 1; overflow-y: auto; }
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .top-bar .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+  }
+  .top-bar .breadcrumb .current { color: var(--color-text); font-weight: 500; }
+  .top-bar .breadcrumb .sep { color: var(--color-text-muted); }
+
+  .page { padding: 24px 32px; max-width: 1320px; }
+
+  /* ─── Stats ─── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    border: 1px solid var(--color-border);
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .stat-card:nth-child(1)::before { background: linear-gradient(90deg, #3b82f6, #8b5cf6); }
+  .stat-card:nth-child(2)::before { background: linear-gradient(90deg, #22c55e, #16a34a); }
+  .stat-card:nth-child(3)::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
+  .stat-card:nth-child(4)::before { background: linear-gradient(90deg, #ef4444, #dc2626); }
+  .stat-card .stat-label {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin-bottom: 8px;
+  }
+  .stat-card .stat-value {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+  .stat-card .stat-change {
+    font-size: 12px;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .stat-card .stat-change.good { color: var(--color-success); }
+  .stat-card .stat-change.bad { color: var(--color-danger); }
+
+  /* ─── Timeline ─── */
+  .timeline { margin-bottom: 24px; }
+  .timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .timeline-header h2 { font-size: 15px; font-weight: 600; }
+  .timeline-tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .timeline-task {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    transition: border-color 0.15s;
+  }
+  .timeline-task:hover { border-color: #3b3f55; }
+  .timeline-task .tl-status-icon {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .tl-success { background: rgba(34,197,94,0.15); color: var(--color-success); }
+  .tl-failed { background: rgba(239,68,68,0.15); color: var(--color-danger); }
+  .tl-running { background: rgba(59,130,246,0.15); color: var(--color-primary); animation: pulse 1.5s ease infinite; }
+  .timeline-task .tl-info { flex: 1; }
+  .timeline-task .tl-title { font-size: 14px; font-weight: 500; }
+  .timeline-task .tl-meta {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin-top: 2px;
+    display: flex;
+    gap: 16px;
+  }
+  .timeline-task .tl-stats {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+  .tl-stat-item { text-align: right; }
+  .tl-stat-item .val { font-size: 14px; font-weight: 600; }
+  .tl-stat-item .lbl { font-size: 11px; color: var(--color-text-muted); }
+  .tl-action a {
+    color: var(--color-primary);
+    font-size: 13px;
+    text-decoration: none;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+  }
+  .tl-action a:hover { background: var(--color-primary-glow); }
+
+  /* ─── Running Task Pipeline ─── */
+  .pipeline {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .pipeline-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .pipeline-header h2 { font-size: 14px; font-weight: 600; }
+  .pipeline-body { padding: 20px; }
+  .pipeline-steps {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+  }
+  .pstep {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    padding: 0 4px;
+  }
+  .pstep-circle {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    border: 2px solid #2a2d3a;
+    background: transparent;
+    color: var(--color-text-muted);
+    position: relative;
+    z-index: 1;
+  }
+  .pstep-circle.done {
+    background: var(--color-success);
+    border-color: var(--color-success);
+    color: #0f1117;
+  }
+  .pstep-circle.running {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+    box-shadow: 0 0 12px rgba(59,130,246,0.4);
+  }
+  .pstep-circle.pending { background: transparent; border-color: #2a2d3a; color: var(--color-text-muted); }
+  .pstep-line {
+    position: absolute;
+    top: 18px;
+    left: calc(50% + 18px);
+    width: calc(100% - 36px);
+    height: 2px;
+    z-index: 0;
+  }
+  .pstep-line.done { background: var(--color-success); }
+  .pstep-line.pending { background: #2a2d3a; }
+  .pstep-label { font-size: 11px; margin-top: 8px; color: var(--color-text-muted); white-space: nowrap; }
+  .pstep-label.done { color: var(--color-success); }
+  .pstep-label.running { color: var(--color-primary); font-weight: 500; }
+  .pstep-duration { font-size: 10px; color: var(--color-text-muted); margin-top: 2px; }
+
+  .pipeline-progress {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+  .pipeline-progress .progress-stat { color: var(--color-text-secondary); }
+  .pipeline-progress .progress-stat strong { color: var(--color-text); }
+
+  /* ─── Filter ─── */
+  .filter-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .filter-row select, .filter-row input {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 13px;
+    color: var(--color-text);
+    min-width: 120px;
+  }
+  .filter-row select option { background: var(--color-surface); }
+
+  /* ─── Search Input ─── */
+  .search-input {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 13px;
+    color: var(--color-text);
+    width: 200px;
+  }
+  .search-input::placeholder { color: var(--color-text-muted); }
+
+  /* ─── Button ─── */
+  .btn-primary {
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    padding: 6px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+  }
+  .btn-ghost:hover { background: var(--color-surface-hover); color: var(--color-text); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .pipeline-steps { overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ═══ Sidebar ═══ -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">E</div>
+      <span>ECL 系统</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">方案管理</div>
+        <div class="nav-item"><span>📋</span> 方案列表</div>
+        <div class="nav-item"><span>🔍</span> 方案对比</div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">参数配置</div>
+        <div class="nav-item"><span>📊</span> 风险分组</div>
+        <div class="nav-item"><span>🧩</span> 阶段划分</div>
+        <div class="nav-item"><span>📈</span> PD 参数</div>
+        <div class="nav-item"><span>📉</span> LGD 参数</div>
+        <div class="nav-item"><span>📐</span> CCF 参数</div>
+        <div class="nav-item"><span>🛡️</span> 管理层叠加</div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">运行监控</div>
+        <div class="nav-item active">
+          <span>⚡</span> 跑批监控
+          <span class="nav-badge">1</span>
+        </div>
+        <div class="nav-item"><span>🧪</span> 试算中心</div>
+        <div class="nav-item"><span>📄</span> 报表查询</div>
+      </div>
+    </div>
+
+    <!-- Current scheme context in sidebar -->
+    <div class="sidebar-scheme">
+      <div class="scheme-label">当前方案</div>
+      <div class="scheme-row">
+        <span class="scheme-status-dot effective"></span>
+        <span class="scheme-name">2026年Q3 v2.1</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--color-text-muted);">▼</span>
+      </div>
+      <div style="margin-top:10px;">
+        <div class="scheme-label" style="margin-bottom:4px;">风险分组</div>
+        <select style="width:100%;background:var(--color-surface-hover);border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:5px 8px;font-size:12px;color:var(--color-text);">
+          <option>GRP_001 对公业务</option>
+          <option>GRP_002 非银金融</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Main ═══ -->
+  <div class="main-content">
+    <div class="top-bar">
+      <div class="breadcrumb">
+        <span>运行监控</span>
+        <span class="sep">/</span>
+        <span class="current">跑批监控</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <div class="search-input" contenteditable style="width:180px;" data-placeholder="搜索任务 ID..."></div>
+        <button class="btn-primary">＋ 新建跑批</button>
+      </div>
+    </div>
+
+    <div class="page">
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">今日任务</div>
+          <div class="stat-value">3</div>
+          <div class="stat-change good">↑ 较昨日 +1</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">成功</div>
+          <div class="stat-value" style="color:var(--color-success);">2</div>
+          <div class="stat-change good">2,000,000 笔处理完成</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">异常</div>
+          <div class="stat-value" style="color:var(--color-warning);">1</div>
+          <div class="stat-change bad">12 笔异常跳过</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">平均耗时</div>
+          <div class="stat-value">27.2s</div>
+          <div class="stat-change good">↓ 3.1s 较昨日</div>
+        </div>
+      </div>
+
+      <!-- Timeline Tasks -->
+      <div class="timeline">
+        <div class="timeline-header">
+          <h2>执行记录</h2>
+          <div class="filter-row" style="margin:0;">
+            <select><option>全部状态</option><option>运行中</option><option>成功</option><option>失败</option></select>
+            <select><option>今天</option><option>近3天</option><option>近7天</option><option>自定义</option></select>
+            <button class="btn-ghost" style="border:none;font-size:12px;">↻ 刷新</button>
+          </div>
+        </div>
+        <div class="timeline-tasks">
+          <!-- Running -->
+          <div class="timeline-task" style="border-color:rgba(59,130,246,0.3);">
+            <div class="tl-status-icon tl-running">⟳</div>
+            <div class="tl-info">
+              <div class="tl-title">JOB_20260618_001</div>
+              <div class="tl-meta">
+                <span>2026年Q3 方案</span>
+                <span>2026-06-18</span>
+              </div>
+            </div>
+            <div class="tl-stats">
+              <div class="tl-stat-item"><div class="val" style="color:var(--color-primary);">42.4%</div><div class="lbl">进度</div></div>
+              <div class="tl-stat-item"><div class="val">423K</div><div class="lbl">已处理/1M</div></div>
+              <div class="tl-stat-item"><div class="val">~18s</div><div class="lbl">预计剩余</div></div>
+            </div>
+            <div class="tl-action"><a>查看 →</a></div>
+          </div>
+
+          <!-- Success -->
+          <div class="timeline-task">
+            <div class="tl-status-icon tl-success">✓</div>
+            <div class="tl-info">
+              <div class="tl-title">JOB_20260617_001</div>
+              <div class="tl-meta">
+                <span>2026年Q3 方案</span>
+                <span>2026-06-17</span>
+              </div>
+            </div>
+            <div class="tl-stats">
+              <div class="tl-stat-item"><div class="val" style="color:var(--color-success);">100%</div><div class="lbl">完成</div></div>
+              <div class="tl-stat-item"><div class="val">1,000K</div><div class="lbl">总笔数</div></div>
+              <div class="tl-stat-item"><div class="val">26.8s</div><div class="lbl">耗时</div></div>
+            </div>
+            <div class="tl-action"><a>查看明细 →</a></div>
+          </div>
+
+          <!-- Failed -->
+          <div class="timeline-task">
+            <div class="tl-status-icon tl-failed">✕</div>
+            <div class="tl-info">
+              <div class="tl-title">JOB_20260616_001</div>
+              <div class="tl-meta">
+                <span>2026年Q1 方案</span>
+                <span>2026-06-16</span>
+              </div>
+            </div>
+            <div class="tl-stats">
+              <div class="tl-stat-item"><div class="val" style="color:var(--color-danger);">失败</div><div class="lbl">已停止</div></div>
+              <div class="tl-stat-item"><div class="val">500K</div><div class="lbl">已处理</div></div>
+              <div class="tl-stat-item"><div class="val" style="color:var(--color-danger);">12</div><div class="lbl">异常</div></div>
+            </div>
+            <div class="tl-action"><a>查看异常 →</a></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Running Pipeline Detail -->
+      <div class="pipeline">
+        <div class="pipeline-header">
+          <h2>运行中流水线 · JOB_20260618_001</h2>
+          <span style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--color-primary);">
+            <span style="width:8px;height:8px;border-radius:50%;background:var(--color-primary);animation:pulse 1.5s ease infinite;"></span>
+            执行中
+          </span>
+        </div>
+        <div class="pipeline-body">
+          <div class="pipeline-steps">
+            <div class="pstep">
+              <div class="pstep-circle done">✓</div>
+              <div class="pstep-line done"></div>
+              <div class="pstep-label done">参数加载</div>
+              <div class="pstep-duration">2.1s</div>
+            </div>
+            <div class="pstep">
+              <div class="pstep-circle done">✓</div>
+              <div class="pstep-line done"></div>
+              <div class="pstep-label done">风险分组</div>
+              <div class="pstep-duration">3.5s</div>
+            </div>
+            <div class="pstep">
+              <div class="pstep-circle done">✓</div>
+              <div class="pstep-line done"></div>
+              <div class="pstep-label done">阶段划分</div>
+              <div class="pstep-duration">2.8s</div>
+            </div>
+            <div class="pstep">
+              <div class="pstep-circle running">4</div>
+              <div class="pstep-line pending"></div>
+              <div class="pstep-label running">PD 计算</div>
+              <div class="pstep-duration">执行中...</div>
+            </div>
+            <div class="pstep">
+              <div class="pstep-circle pending">5</div>
+              <div class="pstep-line pending"></div>
+              <div class="pstep-label pending">ECL 计算</div>
+            </div>
+            <div class="pstep">
+              <div class="pstep-circle pending">6</div>
+              <div class="pstep-line pending"></div>
+              <div class="pstep-label pending">写表对账</div>
+            </div>
+            <div class="pstep">
+              <div class="pstep-circle pending">7</div>
+              <div class="pstep-label pending">完成</div>
+            </div>
+          </div>
+          <div class="pipeline-progress">
+            <span class="progress-stat">已处理 <strong>423,891</strong> / 1,000,000 笔</span>
+            <span class="progress-stat">异常跳过 <strong>0</strong> 笔</span>
+            <span class="progress-stat">预计剩余 <strong>~18s</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

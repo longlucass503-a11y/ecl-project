@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PD 参数配置 - ECL 系统</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC",sans-serif;background:var(--color-bg);color:var(--color-text);line-height:1.5}
+  :root{--color-primary:#2563eb;--color-primary-light:#eff3ff;--color-primary-dark:#1d4ed8;--color-success:#059669;--color-warning:#d97706;--color-danger:#dc2626;--color-bg:#f8f9fb;--color-bg-alt:#f1f3f6;--color-surface:#fff;--color-surface-hover:#f8f9fb;--color-border:#e5e7eb;--color-border-light:#f0f1f3;--color-text:#111827;--color-text-secondary:#6b7280;--color-text-muted:#9ca3af;--radius-sm:6px;--radius-md:8px;--radius-lg:12px;--radius-full:9999px;--shadow-xs:0 1px 2px rgba(0,0,0,.03);--shadow-sm:0 1px 3px rgba(0,0,0,.04),0 1px 2px rgba(0,0,0,.03);--shadow-md:0 4px 12px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.03);--shadow-lg:0 10px 30px rgba(0,0,0,.06),0 1px 3px rgba(0,0,0,.04);--transition-fast:150ms cubic-bezier(.16,1,.3,1);--shadow-md:0 2px 8px rgba(0,0,0,.06)}
+  .global-context{background:var(--color-surface);border-bottom:1px solid #e5e7eb;padding:12px 32px;display:flex;align-items:center;gap:24px;box-shadow:var(--shadow-xs);position:sticky;top:0;z-index:50}
+  .context-logo{font-size:15px;font-weight:700;color:var(--color-primary);letter-spacing:-.02em}
+  .context-logo span{color:var(--color-text);font-weight:400}
+  .page{max-width:1280px;margin:0 auto;padding:24px 32px}
+  .page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
+  .page-header h1{font-size:22px;font-weight:650;letter-spacing:-.02em;color:var(--color-text)}
+  .page-header .sub{font-size:14px;color:var(--color-text-secondary);margin-top:4px}
+  .panel{background:var(--color-surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-xs);border:1px solid #e5e7eb;margin-bottom:20px}
+  .panel-header{padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+  .panel-header h2{font-size:14px;font-weight:600;color:var(--color-text);letter-spacing:-.01em}
+  .panel-body{padding:20px}
+  .panel-body-nopad{padding:0}
+  .btn-ghost{background:none;border:none;padding:6px 12px;border-radius:var(--radius-sm);font-size:13px;color:var(--color-text-secondary);cursor:pointer}
+  .btn-ghost:hover{background:var(--color-bg);color:var(--color-text)}
+  .btn-primary{background:var(--color-primary);color:#fff;border:none;padding:7px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all var(--transition-fast);letter-spacing:-.01em;display:inline-flex;align-items:center;gap:6px}
+  .btn-primary:hover{background:var(--color-primary-dark);box-shadow:0 2px 8px rgba(37,99,235,.25)}
+  .btn-outline{background:var(--color-surface);border:1px solid #e5e7eb;padding:4px 12px;border-radius:var(--radius-sm);font-size:12px;color:var(--color-text-secondary);cursor:pointer}
+  .btn-outline:hover{border-color:var(--color-primary);color:var(--color-primary)}
+  .btn-text{background:none;border:none;padding:4px 8px;border-radius:var(--radius-sm);font-size:12px;color:var(--color-text-secondary);cursor:pointer}
+  .btn-text:hover{color:var(--color-primary);background:var(--color-primary-light)}
+  .btn-text.danger:hover{color:var(--color-danger);background:#fef2f2}
+
+  /* Group selector */
+  .group-selector{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+  .group-chip{padding:6px 16px;border-radius:var(--radius-full);font-size:13px;cursor:pointer;background:var(--color-surface);color:var(--color-text-secondary);border:1px solid #e5e7eb;transition:all .12s}
+  .group-chip:hover{background:#eef0f5}
+  .group-chip.active{background:var(--color-primary-light);color:var(--color-primary-dark);border-color:#d1ddfb;font-weight:500}
+  .group-chip .chip-count{font-size:10px;color:var(--color-text-muted);margin-left:4px}
+  .group-chip.active .chip-count{color:var(--color-text-secondary)}
+
+  /* Scenario bar */
+  .scenario-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:12px 16px;background:var(--color-bg-alt);border-radius:var(--radius-lg);border:1px solid #e5e7eb;flex-wrap:wrap}
+  .scenario-tabs{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+  .scenario-tab{padding:6px 14px;border-radius:var(--radius-full);font-size:13px;cursor:pointer;background:var(--color-surface);color:var(--color-text-secondary);border:1px solid #e5e7eb;transition:all .15s;display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .scenario-tab:hover{background:#eef0f5}
+  .scenario-tab.active{background:var(--color-primary-light);color:var(--color-primary-dark);border-color:#d1ddfb;font-weight:500;box-shadow:0 0 0 1px #d1ddfb}
+  .scenario-tab .weight-badge{font-size:11px;padding:0 6px;border-radius:4px;background:rgba(0,0,0,.06);color:var(--color-text-secondary)}
+  .scenario-tab.active .weight-badge{background:rgba(26,86,219,.1);color:var(--color-primary)}
+  .tab-remove{font-size:10px;color:var(--color-text-muted);cursor:pointer;padding:1px 3px;border-radius:3px;margin-left:2px;line-height:1;opacity:0;transition:opacity .12s}
+  .scenario-tab:hover .tab-remove{opacity:1}
+  .tab-remove:hover{color:#dc2626;background:#fee2e2}
+
+  /* Table */
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:11px;font-weight:700;color:var(--color-text-secondary);padding:12px 16px;background:#f1f5f9;border-bottom:2px solid #dde1e7;white-space:nowrap;text-transform:uppercase;letter-spacing:.06em}
+  td{padding:13px 16px;border-bottom:1px solid #f0f1f3;font-size:13px;color:var(--color-text);background:#fff;transition:background var(--transition-fast)}
+  tr:nth-child(even) td{background:#fafbfc}
+  tr:hover td{background:#eff3ff!important}
+  tr:last-child td{border-bottom:none}
+  .mono{font-family:"SF Mono","JetBrains Mono","Fira Code",monospace;font-size:12px;letter-spacing:.02em;font-weight:500;color:var(--color-primary-dark);font-weight:500;color:var(--color-primary-dark)}
+  .cell-editable{cursor:pointer;padding:4px 8px;border-radius:4px;border:1px solid transparent;transition:all .12s;min-height:24px;display:inline-block;min-width:100px;text-align:right}
+  .cell-editable:hover{background:var(--color-surface);border-color:#e5e7eb;box-shadow:0 0 0 2px #e8effd}
+  .cell-editable:focus{background:var(--color-surface);border-color:var(--color-primary);box-shadow:0 0 0 2px #e8effd;outline:none}
+  .pd-change{font-size:11px;margin-left:6px}
+  .pd-change.up{color:#dc2626}
+  .pd-change.down{color:#059669}
+  .action-bar{display:flex;gap:8px;align-items:center;padding:12px 12px 8px;border-top:1px solid #f0f0f0;flex-wrap:wrap}
+
+  /* Modal */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center}
+  .modal-overlay.show{display:flex}
+  .modal-box{background:var(--color-surface);border-radius:var(--radius-lg);width:520px;max-width:90vw;box-shadow:var(--shadow-lg);overflow:hidden}
+  .modal-head{padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+  .modal-head h3{font-size:15px;font-weight:600}
+  .modal-close{background:none;border:none;font-size:18px;color:var(--color-text-muted);cursor:pointer}
+  .modal-body{padding:20px}
+  .modal-foot{padding:12px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:8px}
+  .form-group{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+  .form-group label{font-size:12px;color:var(--color-text-secondary);font-weight:500}
+  .form-group select,.form-group input,.form-group textarea{border:1px solid #e5e7eb;border-radius:var(--radius-sm);padding:6px 10px;font-size:13px}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--color-text);color:#f1f5f9;padding:10px 18px;border-radius:var(--radius-md);font-size:13px;z-index:999;opacity:0;transform:translateY(10px);transition:all .25s cubic-bezier(.16,1,.3,1);pointer-events:none}
+  .toast.show{opacity:1;transform:translateY(0)}
+  .empty-state{padding:40px;text-align:center;color:var(--color-text-muted)}
+</style>
+</head>
+<body>
+<div class="global-context"><div class="context-logo">ECL <span>减值计量系统</span></div></div>
+<div class="page">
+  <div class="page-header">
+    <div><h1>PD 参数配置</h1><div class="sub">按风险分组管理 PD 曲线，每个分组可独立配置情景</div></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-ghost" onclick="showToast('矩阵视图已打开')">⊗ 矩阵视图</button>
+      <button class="btn-primary" onclick="openScenarioModal()" id="addScenarioBtn">⊕ 新增情景</button>
+    </div>
+  </div>
+
+  <!-- Risk Group Selector -->
+  <div class="group-selector" id="groupSelector"></div>
+
+  <!-- Scenario Bar -->
+  <div class="scenario-bar" id="scenarioBar">
+    <span style="font-size:13px;font-weight:500;">情景</span>
+    <div class="scenario-tabs" id="scenarioTabs"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+      <span id="weightSummary" style="font-size:11px;color:var(--color-text-muted)"></span>
+      <button class="btn-text" onclick="showToast('情景管理弹窗已打开')">情景管理</button>
+    </div>
+  </div>
+
+  <!-- Curve Table -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2 id="curveTitle">PD 曲线</h2>
+      <span style="font-size:12px;color:var(--color-text-muted)" id="curveSubtitle"></span>
+    </div>
+    <div class="panel-body-nopad">
+      <table><thead><tr><th style="width:120px;">评级代码</th><th>12M PD 值</th><th>较基准偏差</th><th style="width:80px;">操作</th></tr></thead>
+        <tbody id="curveBody"></tbody>
+      </table>
+    </div>
+    <div class="panel-body" style="padding-top:0;">
+      <div class="action-bar">
+        <button class="btn-outline" onclick="showToast('批量导入弹窗已打开')">📄 批量导入</button>
+        <button class="btn-outline" onclick="showToast('数据已导出')">⬇ 导出</button>
+        <span style="font-size:12px;color:var(--color-text-secondary);margin-left:8px;">从其他情景复制：</span>
+        <select id="copyFrom" style="border:1px solid #e5e7eb;border-radius:4px;padding:3px 6px;font-size:12px;"></select>
+        <button class="btn-text" onclick="copyScenario()">确定复制</button>
+        <div style="margin-left:auto;"><button class="btn-primary" style="font-size:12px;padding:5px 16px;" onclick="showToast('曲线已保存')">保存</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scenario Modal -->
+<div class="modal-overlay" id="scenarioModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3>新增情景</h3><button class="modal-close" onclick="closeModal('scenarioModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>情景类型</label><select id="scenarioType"><option>OPTIMISTIC</option><option>BASELINE</option><option>PESSIMISTIC</option><option>STRESS_TEST</option></select></div>
+      <div class="form-group"><label>情景名称</label><input type="text" id="scenarioName" placeholder="如：压力测试情景"></div>
+      <div class="form-group"><label>权重 (0.00 ~ 1.00)</label><input type="number" id="scenarioWeight" step="0.01" min="0" max="1" value="0.10"></div>
+      <div class="form-group">
+        <label><input type="checkbox" id="copyFromExisting"> 从以下情景复制 PD 初值</label>
+        <select id="copySource" style="margin-top:4px;"></select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="closeModal('scenarioModal')">取消</button>
+      <button class="btn-primary" onclick="confirmAddScenario()">确认新增</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════
+// DATA MODEL: 方案 → 风险分组 → 情景 → PD 曲线
+// ════════════════════════════════════════════════
+const ratingCodes = ['CRR 1','CRR 2','CRR 3','CRR 4','CRR 5','CRR 6','CRR 7','CRR 8','CRR 9'];
+
+function makePdCurves(baseVal = 0.00005, factor = 2) {
+  return ratingCodes.map((r, i) => {
+    const v = baseVal * Math.pow(factor, i);
+    return { rating: r, pd: v.toFixed(8), baseline: v.toFixed(8) };
+  });
+}
+
+// Groups, each with its own scenarios and curves
+const groupData = {
+  'GRP_001': {
+    name: '对公业务',
+    scenarios: {
+      'opt': { name: '乐观情景', type: 'OPTIMISTIC', weight: 0.20 },
+      'base': { name: '基准情景', type: 'BASELINE', weight: 0.60 },
+      'pes': { name: '悲观情景', type: 'PESSIMISTIC', weight: 0.20 }
+    },
+    curves: {
+      'opt': makePdCurves(0.00002, 2.5),
+      'base': makePdCurves(0.00005, 2),
+      'pes': makePdCurves(0.0001, 2.2)
+    }
+  },
+  'GRP_002': {
+    name: '非银金融',
+    scenarios: {
+      'base': { name: '标准情景', type: 'BASELINE', weight: 0.70 },
+      'stress': { name: '压力情景', type: 'STRESS_TEST', weight: 0.30 }
+    },
+    curves: {
+      'base': makePdCurves(0.00008, 2),
+      'stress': makePdCurves(0.0003, 2.5)
+    }
+  },
+  'GRP_003': {
+    name: '银行同业',
+    scenarios: {
+      'single': { name: '单一情景', type: 'BASELINE', weight: 1.0 }
+    },
+    curves: {
+      'single': makePdCurves(0.00003, 1.8)
+    }
+  },
+  'GRP_004': {
+    name: '债券业务',
+    scenarios: {
+      'opt': { name: '乐观', type: 'OPTIMISTIC', weight: 0.15 },
+      'base': { name: '基准', type: 'BASELINE', weight: 0.70 },
+      'pes': { name: '悲观', type: 'PESSIMISTIC', weight: 0.15 }
+    },
+    curves: {
+      'opt': makePdCurves(0.00001, 2),
+      'base': makePdCurves(0.00004, 2),
+      'pes': makePdCurves(0.00015, 2)
+    }
+  },
+  'GRP_005': {
+    name: '供应链小微',
+    scenarios: {
+      'base': { name: '基准', type: 'BASELINE', weight: 0.50 },
+      'pes': { name: '悲观', type: 'PESSIMISTIC', weight: 0.50 }
+    },
+    curves: {
+      'base': makePdCurves(0.001, 2),
+      'pes': makePdCurves(0.005, 2)
+    }
+  }
+};
+
+let currentGroup = 'GRP_001';
+let currentScenario = null;
+let scenarioCounter = {};
+
+function getScenarios() { return groupData[currentGroup].scenarios; }
+function getCurves() { return groupData[currentGroup].curves; }
+function getCurveKeys() { return Object.keys(getCurves()); }
+
+// Init scenario counter per group
+Object.keys(groupData).forEach(g => {
+  scenarioCounter[g] = Object.keys(groupData[g].scenarios).length;
+});
+
+// ─── Render groups ───
+function renderGroups() {
+  const container = document.getElementById('groupSelector');
+  container.innerHTML = Object.keys(groupData).map(g => {
+    const gd = groupData[g];
+    const scCount = Object.keys(gd.scenarios).length;
+    return `<div class="group-chip ${g === currentGroup ? 'active' : ''}" onclick="switchGroup('${g}')">
+      ${gd.name} <span class="chip-count">${scCount}情景</span>
+    </div>`;
+  }).join('');
+}
+
+// ─── Render scenarios ───
+function renderScenarios() {
+  const scs = getScenarios();
+  const keys = Object.keys(scs);
+  const tabsContainer = document.getElementById('scenarioTabs');
+
+  tabsContainer.innerHTML = keys.map(id => {
+    const s = scs[id];
+    const isActive = id === currentScenario;
+    return `<div class="scenario-tab ${isActive ? 'active' : ''}" data-id="${id}" onclick="switchScenario(this)">
+      ${s.name} <span class="weight-badge">${(s.weight * 100).toFixed(0)}%</span>
+      <span class="tab-remove" onclick="event.stopPropagation();deleteScenario('${id}')" title="删除情景">✕</span>
+    </div>`;
+  }).join('');
+
+  // Update copy-from dropdown
+  const copySelect = document.getElementById('copyFrom');
+  copySelect.innerHTML = keys.filter(k => k !== currentScenario)
+    .map(k => `<option value="${k}">${scs[k].name}</option>`).join('');
+
+  // Update weight summary
+  const totalWeight = keys.reduce((sum, k) => sum + scs[k].weight, 0);
+  const weightEl = document.getElementById('weightSummary');
+  weightEl.textContent = `权重合计 ${(totalWeight * 100).toFixed(0)}% ${Math.abs(totalWeight - 1) < 0.001 ? '✓' : '⚠ 需等于100%'}`;
+  weightEl.style.color = Math.abs(totalWeight - 1) < 0.001 ? '#9ca3af' : '#dc2626';
+
+  // Auto-select first if none selected
+  if (!currentScenario || !scs[currentScenario]) {
+    currentScenario = keys[0] || null;
+  }
+}
+
+// ─── Render curves ───
+function renderCurves() {
+  const scs = getScenarios();
+  const curves = getCurves();
+  const sc = scs[currentScenario];
+  if (!sc || !curves[currentScenario]) {
+    document.getElementById('curveBody').innerHTML = '<tr><td colspan="4"><div class="empty-state">请先添加情景</div></td></tr>';
+    document.getElementById('curveTitle').textContent = 'PD 曲线';
+    document.getElementById('curveSubtitle').textContent = '';
+    return;
+  }
+  const data = curves[currentScenario];
+  const tbody = document.getElementById('curveBody');
+  document.getElementById('curveTitle').textContent = `PD 曲线 — ${sc.name}`;
+  document.getElementById('curveSubtitle').textContent = `${groupData[currentGroup].name} · 权重 ${(sc.weight * 100).toFixed(0)}%`;
+
+  tbody.innerHTML = data.map((row, i) => {
+    const diff = parseFloat(row.pd) - parseFloat(row.baseline);
+    let diffHtml = '<span style="color:var(--color-text-muted);font-size:12px;">— 基准值</span>';
+    if (diff < -0.00001) diffHtml = `<span class="pd-change down">▼ ${(-diff).toFixed(8)}</span>`;
+    else if (diff > 0.00001) diffHtml = `<span class="pd-change up">▲ ${diff.toFixed(8)}</span>`;
+    return `<tr>
+      <td><span class="mono" style="font-weight:500;">${row.rating}</span></td>
+      <td><span class="mono cell-editable" contenteditable onblur="editPd(${i}, this.textContent)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${row.pd}</span></td>
+      <td>${diffHtml}</td>
+      <td><button class="btn-text" onclick="resetPd(${i})">重置</button></td>
+    </tr>`;
+  }).join('');
+
+  // Update copy source in modal
+  const copySource = document.getElementById('copySource');
+  const keys = Object.keys(scs).filter(k => k !== currentScenario);
+  copySource.innerHTML = keys.map(k => `<option value="${k}">${scs[k].name}</option>`).join('') || '<option>（无其他情景）</option>';
+}
+
+function switchGroup(id) {
+  currentGroup = id;
+  const scs = getScenarios();
+  const keys = Object.keys(scs);
+  currentScenario = keys[0] || null;
+  renderGroups();
+  renderScenarios();
+  renderCurves();
+}
+
+function switchScenario(el) {
+  document.querySelectorAll('.scenario-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentScenario = el.dataset.id;
+  renderCurves();
+}
+
+function editPd(idx, val) {
+  const curves = getCurves();
+  if (curves[currentScenario]) {
+    curves[currentScenario][idx].pd = val.trim() || '0.00000000';
+    renderCurves();
+  }
+}
+
+function resetPd(idx) {
+  const curves = getCurves();
+  if (curves[currentScenario]) {
+    curves[currentScenario][idx].pd = curves[currentScenario][idx].baseline;
+    renderCurves();
+    showToast('已重置为基准值');
+  }
+}
+
+function copyScenario() {
+  const target = document.getElementById('copyFrom').value;
+  if (!target || target === currentScenario) return;
+  const curves = getCurves();
+  if (curves[target] && curves[currentScenario]) {
+    curves[currentScenario] = curves[target].map(r => ({...r}));
+    renderCurves();
+    showToast(`已复制`);
+  }
+}
+
+// ─── Scenario CRUD ───
+function openScenarioModal() {
+  // Update copy source options
+  const scs = getScenarios();
+  const copySource = document.getElementById('copySource');
+  const keys = Object.keys(scs);
+  copySource.innerHTML = keys.map(k => `<option value="${k}">${scs[k].name}</option>`).join('') || '<option>（无）</option>';
+  document.getElementById('scenarioModal').classList.add('show');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+function confirmAddScenario() {
+  const type = document.getElementById('scenarioType').value;
+  const name = document.getElementById('scenarioName').value || '新情景';
+  const weight = parseFloat(document.getElementById('scenarioWeight').value) || 0.10;
+  const copyFrom = document.getElementById('copyFromExisting').checked
+    ? document.getElementById('copySource').value : null;
+
+  const g = currentGroup;
+  if (!scenarioCounter[g]) scenarioCounter[g] = 0;
+  scenarioCounter[g]++;
+  const id = 'sc_' + g + '_' + scenarioCounter[g];
+
+  groupData[g].scenarios[id] = { name, type, weight };
+  groupData[g].curves[id] = copyFrom && groupData[g].curves[copyFrom]
+    ? groupData[g].curves[copyFrom].map(r => ({...r}))
+    : makePdCurves(0.00005, 2);
+
+  currentScenario = id;
+  renderScenarios();
+  renderCurves();
+  closeModal('scenarioModal');
+  showToast(`情景「${name}」已添加到${groupData[g].name}`);
+}
+
+function deleteScenario(id) {
+  const scs = getScenarios();
+  const keys = Object.keys(scs);
+  if (keys.length <= 1) { showToast('至少保留一个情景'); return; }
+  if (!confirm(`确定删除情景「${scs[id].name}」？该操作不可撤销。`)) return;
+
+  delete scs[id];
+  delete groupData[currentGroup].curves[id];
+
+  if (currentScenario === id) {
+    const remaining = Object.keys(scs);
+    currentScenario = remaining[0] || null;
+  }
+  renderScenarios();
+  renderCurves();
+  showToast('情景已删除');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// Init
+renderGroups();
+renderScenarios();
+renderCurves();
+</script>
+
+<style>.iframed .global-context{display:none!important}</style>
+<script>(function(){if(window.self!==window.top)document.documentElement.className+=" iframed"})();</script>
+</body>
+</html>

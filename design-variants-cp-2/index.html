@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECL 减值计量系统</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC",sans-serif;background:#f5f6fa;color:#1a1d29;line-height:1.5}
+:root{--color-primary:#1a56db;--color-primary-light:#e8effd;--color-primary-dark:#1243af;--color-success:#059669;--color-warning:#d97706;--color-danger:#dc2626;--color-bg:#f5f6fa;--color-surface:#fff;--color-border:#e5e7eb;--color-text:#1a1d29;--color-text-secondary:#6b7280;--color-text-muted:#9ca3af;--radius-sm:6px;--radius-md:10px;--shadow-sm:0 1px 2px rgba(0,0,0,.04);--shadow-md:0 3px 10px rgba(0,0,0,.06)}
+
+.app-shell{display:flex;flex-direction:column;height:100vh}
+.top-header{background:var(--color-surface);border-bottom:1px solid var(--color-border);box-shadow:var(--shadow-sm);flex-shrink:0;z-index:100}
+.header-inner{max-width:1440px;margin:0 auto;padding:0 32px;display:flex;align-items:center;height:48px;gap:2px}
+.header-logo{font-size:16px;font-weight:700;color:var(--color-primary);margin-right:18px;white-space:nowrap;letter-spacing:-.3px}
+.header-logo span{color:#1a1d29;font-weight:400}
+.nav-item{padding:5px 12px;font-size:13px;color:#6b7280;cursor:pointer;border-radius:6px;white-space:nowrap;transition:all .12s}
+.nav-item:hover{background:#f5f6fa;color:#1a1d29}
+.nav-item.active{background:var(--color-primary-light);color:var(--color-primary-dark);font-weight:500}
+
+/* ─── Main Layout ─── */
+.main-layout{display:flex;flex:1;overflow:hidden}
+
+/* ─── Sidebar ─── */
+.sidebar{width:220px;background:var(--color-surface);border-right:1px solid var(--color-border);display:none;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sidebar.show{display:flex}
+.sidebar-scheme{padding:14px 16px;border-bottom:1px solid var(--color-border)}
+.sidebar-scheme .ss-code{font-size:11px;color:var(--color-text-muted)}
+.sidebar-scheme .ss-name{font-size:14px;font-weight:600;margin-top:2px}
+.sidebar-scheme .ss-status{font-size:10px;padding:1px 6px;border-radius:10px;display:inline-block;margin-top:4px;background:#d1fae5;color:#065f46;font-weight:500}
+.sidebar-nav{flex:1;padding:8px 0}
+.sidebar-item{display:flex;align-items:center;gap:8px;padding:9px 16px;font-size:13px;color:#6b7280;cursor:pointer;border-left:3px solid transparent;transition:all .1s}
+.sidebar-item:hover{background:var(--color-primary-light);color:var(--color-text)}
+.sidebar-item.active{background:var(--color-primary-light);color:var(--color-primary-dark);border-left-color:var(--color-primary);font-weight:500}
+.sidebar-item .si-icon{width:20px;text-align:center;font-size:14px}
+
+/* ─── Content ─── */
+.content-area{flex:1;overflow:hidden;background:#f5f6fa}
+.content-area iframe{width:100%;height:100%;border:none;display:none}
+.content-area iframe.active{display:block}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="top-header">
+    <div class="header-inner">
+      <div class="header-logo">ECL <span>减值计量系统</span></div>
+      <div class="nav-item active" onclick="switchGlobal('dashboard')" data-page="dashboard">跑批监控</div>
+      <div class="nav-item" onclick="switchGlobal('scheme-list')" data-page="scheme-list">方案列表</div>
+      <div class="nav-item" onclick="switchGlobal('trial')" data-page="trial">试算中心</div>
+    </div>
+  </div>
+  <div class="main-layout">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-scheme">
+        <div class="ss-code" id="ssCode">SCH_003</div>
+        <div class="ss-name" id="ssName">2026年Q3 v2.1</div>
+        <span class="ss-status" id="ssStatus">● 已生效</span>
+      </div>
+      <div class="sidebar-nav">
+        <div class="sidebar-item active" data-sp="overview" onclick="switchSchemePage('overview')">
+          <span class="si-icon">◉</span> 方案总览
+        </div>
+        <div class="sidebar-item" data-sp="risk-group" onclick="switchSchemePage('risk-group')">
+          <span class="si-icon">📊</span> 风险分组
+        </div>
+        <div class="sidebar-item" data-sp="stage" onclick="switchSchemePage('stage')">
+          <span class="si-icon">🧩</span> 阶段划分
+        </div>
+        <div class="sidebar-item" data-sp="pd" onclick="switchSchemePage('pd')">
+          <span class="si-icon">📈</span> PD 参数
+        </div>
+        <div class="sidebar-item" data-sp="lgd" onclick="switchSchemePage('lgd')">
+          <span class="si-icon">📉</span> LGD 参数
+        </div>
+        <div class="sidebar-item" data-sp="ccf" onclick="switchSchemePage('ccf')">
+          <span class="si-icon">📐</span> CCF 参数
+        </div>
+        <div class="sidebar-item" data-sp="overlay" onclick="switchSchemePage('overlay')">
+          <span class="si-icon">🛡️</span> 管理层叠加
+        </div>
+      </div>
+    </div>
+    <!-- Content -->
+    <div class="content-area" id="contentArea">
+      <iframe src="v1-clean-professional.html" class="active" id="cf-dashboard"></iframe>
+      <iframe src="v1-scheme-list.html" id="cf-scheme-list"></iframe>
+      <iframe src="v1-scheme-overview.html" id="cf-overview"></iframe>
+      <iframe src="v1-risk-group-config.html" id="cf-risk-group"></iframe>
+      <iframe src="v1-stage-config.html" id="cf-stage"></iframe>
+      <iframe src="v1-pd-config.html" id="cf-pd"></iframe>
+      <iframe src="v1-lgd-config.html" id="cf-lgd"></iframe>
+      <iframe src="v1-ccf-config.html" id="cf-ccf"></iframe>
+      <iframe src="v1-overlay-config.html" id="cf-overlay"></iframe>
+      <iframe src="v1-trial-center.html" id="cf-trial"></iframe>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Global page switching (top nav) ───
+function switchGlobal(page) {
+  // Hide sidebar
+  document.getElementById('sidebar').classList.remove('show');
+
+  // Update nav
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if (nav) nav.classList.add('active');
+
+  // Show content
+  showFrame(page === 'scheme-list' ? 'scheme-list' : page === 'overview' ? 'overview' : page === 'dashboard' ? 'dashboard' : page === 'trial' ? 'trial' : page);
+}
+
+// ─── Scheme context: enter from scheme-list or directly ───
+function enterScheme(code, name, status) {
+  document.getElementById('ssCode').textContent = code;
+  document.getElementById('ssName').textContent = name;
+  const badge = document.getElementById('ssStatus');
+  if (status === 'EFFECTIVE') { badge.textContent = '● 已生效'; badge.style.background = '#d1fae5'; badge.style.color = '#065f46'; }
+  else if (status === 'DRAFT') { badge.textContent = '● 草稿'; badge.style.background = '#f3f4f6'; badge.style.color = '#374151'; }
+  else if (status === 'PUBLISHED') { badge.textContent = '● 已发布'; badge.style.background = '#dbeafe'; badge.style.color = '#1e40af'; }
+  else { badge.textContent = '● 已失效'; badge.style.background = '#fee2e2'; badge.style.color = '#991b1b'; }
+
+  document.getElementById('sidebar').classList.add('show');
+  switchSchemePage('overview');
+}
+
+// ─── Scheme page switching (sidebar) ───
+function switchSchemePage(page) {
+  document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+  const item = document.querySelector(`.sidebar-item[data-sp="${page}"]`);
+  if (item) item.classList.add('active');
+
+  // Also update top nav to show scheme-list as active (context)
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const slNav = document.querySelector('.nav-item[data-page="scheme-list"]');
+  if (slNav) slNav.classList.add('active');
+
+  showFrame(page);
+}
+
+// ─── Show iframe ───
+function showFrame(name) {
+  document.querySelectorAll('#contentArea iframe').forEach(f => f.classList.remove('active'));
+  const frame = document.getElementById('cf-' + name);
+  if (frame) frame.classList.add('active');
+}
+
+// ─── Called from scheme-list iframe via parent ───
+// scheme list page will call: parent.switchToScheme('SCH_003', '2026年Q3 v2.1', 'EFFECTIVE')
+window.switchToScheme = function(code, name, status) {
+  enterScheme(code, name, status);
+};
+
+// Called from scheme-overview iframe: parent.switchToParam('pd')
+window.switchToParam = function(page) {
+  switchSchemePage(page);
+};
+</script>
+</body>
+</html>

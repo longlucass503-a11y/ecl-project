@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案管理 - ECL 系统</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC",sans-serif;background:var(--color-bg);color:var(--color-text);line-height:1.5}
+  :root{--color-primary:#2563eb;--color-primary-light:#eff3ff;--color-primary-dark:#1d4ed8;--color-success:#059669;--color-warning:#d97706;--color-danger:#dc2626;--color-bg:#f8f9fb;--color-bg-alt:#f1f3f6;--color-surface:#fff;--color-surface-hover:#f8f9fb;--color-border:#e5e7eb;--color-border-light:#f0f1f3;--color-text:#111827;--color-text-secondary:#6b7280;--color-text-muted:#9ca3af;--radius-sm:6px;--radius-md:8px;--radius-lg:12px;--radius-full:9999px;--shadow-xs:0 1px 2px rgba(0,0,0,.03);--shadow-sm:0 1px 3px rgba(0,0,0,.04),0 1px 2px rgba(0,0,0,.03);--shadow-md:0 4px 12px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.03);--shadow-lg:0 10px 30px rgba(0,0,0,.06),0 1px 3px rgba(0,0,0,.04);--transition-fast:150ms cubic-bezier(.16,1,.3,1)}
+  .global-context{background:var(--color-surface);border-bottom:1px solid #e5e7eb;padding:12px 32px;display:flex;align-items:center;gap:24px;box-shadow:var(--shadow-xs)}
+  .context-logo{font-size:15px;font-weight:700;color:var(--color-primary);letter-spacing:-.02em}
+  .context-logo span{color:var(--color-text);font-weight:400}
+  .page{max-width:1280px;margin:0 auto;padding:24px 32px}
+  .page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
+  .page-header h1{font-size:22px;font-weight:650;letter-spacing:-.02em;color:var(--color-text)}
+  .page-header .sub{font-size:14px;color:var(--color-text-secondary);margin-top:4px}
+  .panel{background:var(--color-surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-xs);border:1px solid #e5e7eb;margin-bottom:20px}
+  .panel-header{padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+  .panel-header h2{font-size:14px;font-weight:600;color:var(--color-text);letter-spacing:-.01em}
+  .panel-body{padding:20px}
+  .panel-body-nopad{padding:0}
+  .btn-ghost{background:none;border:none;padding:6px 12px;border-radius:var(--radius-sm);font-size:13px;color:var(--color-text-secondary);cursor:pointer}
+  .btn-ghost:hover{background:var(--color-bg)}
+  .btn-primary{background:var(--color-primary);color:#fff;border:none;padding:7px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all var(--transition-fast);letter-spacing:-.01em;display:inline-flex;align-items:center;gap:6px}
+  .btn-primary:hover{background:var(--color-primary-dark);box-shadow:0 2px 8px rgba(37,99,235,.25)}
+  .btn-text{background:none;border:none;padding:4px 8px;border-radius:var(--radius-sm);font-size:12px;color:var(--color-text-secondary);cursor:pointer}
+  .btn-text:hover{color:var(--color-primary);background:var(--color-primary-light)}
+  .btn-text.danger:hover{color:var(--color-danger);background:#fef2f2}
+  .btn-outline{background:var(--color-surface);border:1px solid #e5e7eb;padding:4px 12px;border-radius:var(--radius-sm);font-size:12px;color:var(--color-text-secondary);cursor:pointer}
+  .btn-outline:hover{border-color:var(--color-primary);color:var(--color-primary)}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:11px;font-weight:700;color:var(--color-text-secondary);padding:12px 16px;background:#f1f5f9;border-bottom:2px solid #dde1e7;white-space:nowrap;text-transform:uppercase;letter-spacing:.06em}
+  td{padding:13px 16px;border-bottom:1px solid #f0f1f3;font-size:13px;color:var(--color-text);background:#fff;transition:background var(--transition-fast)}
+  tr:nth-child(even) td{background:#fafbfc}
+  tr:hover td{background:#eff3ff!important}
+  tr:last-child td{border-bottom:none}
+  .mono{font-family:"SF Mono","JetBrains Mono","Fira Code",monospace;font-size:12px;letter-spacing:.02em;font-weight:500;color:var(--color-primary-dark)}
+  .status-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:var(--radius-full);font-size:11px;font-weight:500}
+  .st-draft{background:#f3f4f6;color:var(--color-text-secondary)}
+  .st-published{background:#dbeafe;color:#1e40af}
+  .st-effective{background:#ecfdf5;color:#059669}
+  .st-expired{background:#fef2f2;color:#dc2626}
+  /* Modal */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:5000;align-items:center;justify-content:center}
+  .modal-overlay.show{display:flex}
+  .modal-box{background:var(--color-surface);border-radius:var(--radius-lg);width:480px;max-width:90vw;box-shadow:var(--shadow-lg);overflow:hidden}
+  .modal-head{padding:14px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+  .modal-head h3{font-size:15px;font-weight:600}
+  .modal-close{background:none;border:none;font-size:18px;color:var(--color-text-muted);cursor:pointer;padding:4px}
+  .modal-close:hover{color:var(--color-text)}
+  .modal-body{padding:20px}
+  .modal-foot{padding:12px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:8px}
+  .form-group{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+  .form-group label{font-size:12px;color:var(--color-text-secondary);font-weight:500}
+  .form-group select,.form-group input,.form-group textarea{border:1px solid #e5e7eb;border-radius:var(--radius-sm);padding:6px 10px;font-size:13px}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--color-text);color:#f1f5f9;padding:10px 18px;border-radius:var(--radius-md);font-size:13px;z-index:9999;opacity:0;transform:translateY(10px);transition:all .25s cubic-bezier(.16,1,.3,1);pointer-events:none}
+  .toast.show{opacity:1;transform:translateY(0)}
+  .empty-state{padding:40px;text-align:center;color:var(--color-text-muted);font-size:13px}
+  .filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .filter-bar select{border:1px solid #e5e7eb;border-radius:var(--radius-sm);padding:5px 10px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="global-context"><div class="context-logo">ECL <span>减值计量系统</span></div></div>
+<div class="page">
+  <div class="page-header">
+    <div><h1>ECL 方案管理</h1><div class="sub">管理 ECL 减值方案的生命周期：创建、复制、发布、失效</div></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-ghost" style="border:1px solid #e5e7eb;" onclick="openCopyModal()">⤻ 从生效方案复制</button>
+      <button class="btn-ghost" style="border:1px solid #e5e7eb;" onclick="showToast('方案对比页面')">⇄ 方案对比</button>
+      <button class="btn-primary" onclick="openCreateModal()">⊕ 新建方案</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>方案列表</h2>
+      <div class="filter-bar">
+        <select id="statusFilter" onchange="render()">
+          <option value="">全部状态</option>
+          <option value="DRAFT">草稿</option>
+          <option value="PUBLISHED">已发布</option>
+          <option value="EFFECTIVE">已生效</option>
+          <option value="EXPIRED">已失效</option>
+        </select>
+      </div>
+    </div>
+    <div class="panel-body-nopad">
+      <table><thead><tr><th>方案编码</th><th>方案名称</th><th>版本</th><th>状态</th><th>生效日期</th><th>创建人</th><th>创建时间</th><th style="width:200px;">操作</th></tr></thead>
+        <tbody id="schemeBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3>编辑方案</h3><button class="modal-close" onclick="closeModal('editModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>方案名称</label><input id="editName" placeholder="方案名称"></div>
+      <div class="form-group"><label>变更说明</label><textarea id="editDesc" rows="3"></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn-ghost" onclick="closeModal('editModal')">取消</button><button class="btn-primary" onclick="confirmEdit()">保存</button></div>
+  </div>
+</div>
+
+<!-- Create Modal -->
+<div class="modal-overlay" id="createModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3>新建方案</h3><button class="modal-close" onclick="closeModal('createModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>方案名称</label><input id="newName" placeholder="如：2026年Q3方案"></div>
+      <div class="form-group"><label>变更说明</label><textarea id="newDesc" rows="3" placeholder="描述本次变更的目的"></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn-ghost" onclick="closeModal('createModal')">取消</button><button class="btn-primary" onclick="confirmCreate()">创建</button></div>
+  </div>
+</div>
+
+<!-- Copy Modal -->
+<div class="modal-overlay" id="copyModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3>从生效方案复制</h3><button class="modal-close" onclick="closeModal('copyModal')">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--color-text-secondary);margin-bottom:12px;">将基于当前生效方案复制一份全新的 DRAFT 方案。</p>
+      <div class="form-group"><label>变更说明</label><textarea id="copyDesc" rows="3" placeholder="如：基于Q2方案修改PD参数"></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn-ghost" onclick="closeModal('copyModal')">取消</button><button class="btn-primary" onclick="confirmCopy()">复制</button></div>
+  </div>
+</div>
+
+<!-- Publish Modal -->
+<div class="modal-overlay" id="publishModal">
+  <div class="modal-box">
+    <div class="modal-head"><h3>发布方案</h3><button class="modal-close" onclick="closeModal('publishModal')">✕</button></div>
+    <div class="modal-body">
+      <p id="publishInfo" style="font-size:13px;margin-bottom:12px;"></p>
+      <div class="form-group"><label>生效方式</label><select id="publishMode"><option value="immediate">立即生效</option><option value="scheduled">计划生效</option></select></div>
+      <div class="form-group" id="publishDateGroup" style="display:none;"><label>计划生效日期</label><input type="date" id="publishDate"></div>
+    </div>
+    <div class="modal-foot"><button class="btn-ghost" onclick="closeModal('publishModal')">取消</button><button class="btn-primary" onclick="confirmPublish()">发布</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let schemes = [
+  { id:'s1', code:'SCH_003', name:'2026年Q3 v2.1', ver:'2.1', status:'EFFECTIVE', date:'2026-06-01', by:'张工', at:'2026-05-25 14:32', desc:'基于Q2调整PD和LGD' },
+  { id:'s2', code:'SCH_002', name:'2026年Q2', ver:'2.0', status:'EXPIRED', date:'2026-03-01', by:'李工', at:'2026-02-20 09:15', desc:'季度例行更新' },
+  { id:'s3', code:'SCH_004', name:'2026年Q3 v3.0 (测试)', ver:'3.0', status:'DRAFT', date:'', by:'张工', at:'2026-06-19 10:00', desc:'试算PD新模型' },
+  { id:'s4', code:'SCH_001', name:'2026年Q1', ver:'1.0', status:'EXPIRED', date:'2026-01-01', by:'王工', at:'2025-12-20 14:00', desc:'初始版本' },
+  { id:'s5', code:'SCH_005', name:'2026年Q3 监管报送版', ver:'1.0', status:'PUBLISHED', date:'2026-07-01', by:'张工', at:'2026-06-18 16:30', desc:'用于监管报送' }
+];
+
+const stLabels = { DRAFT:'草稿', PUBLISHED:'已发布', EFFECTIVE:'已生效', EXPIRED:'已失效' };
+const stClass = { DRAFT:'st-draft', PUBLISHED:'st-published', EFFECTIVE:'st-effective', EXPIRED:'st-expired' };
+let publishTargetId = null;
+let editTargetId = null;
+
+function render() {
+  const filter = document.getElementById('statusFilter').value;
+  let data = filter ? schemes.filter(s => s.status === filter) : schemes;
+  const tbody = document.getElementById('schemeBody');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">暂无方案</div></td></tr>'; return; }
+  tbody.innerHTML = data.map(s => `<tr>
+    <td class="mono" style="font-weight:500;color:var(--color-primary)">${s.code}</td>
+    <td style="font-weight:500;">${s.name}</td>
+    <td>${s.ver}</td>
+    <td><span class="status-tag ${stClass[s.status]}">${stLabels[s.status]}</span></td>
+    <td>${s.date || '-'}</td>
+    <td>${s.by}</td>
+    <td>${s.at}</td>
+    <td>
+      <span class="btn-text" onclick="viewScheme('${s.id}')">查看</span>
+      ${s.status === 'DRAFT' ? `<span class="btn-text" onclick="openEditModal('${s.id}')">编辑</span><span class="btn-text" onclick="openPublishModal('${s.id}')">发布</span><span class="btn-text danger" onclick="deleteScheme('${s.id}')">删除</span>` : ''}
+      ${s.status === 'PUBLISHED' ? '<span style="font-size:11px;color:var(--color-text-muted);">待生效</span>' : ''}
+      ${s.status === 'EFFECTIVE' ? `<span class="btn-text" onclick="copyFrom('${s.id}')">复制</span>` : ''}
+    </td>
+  </tr>`).join('');
+}
+
+function viewScheme(id) {
+  const s = schemes.find(x => x.id === id);
+  if (s) {
+    try { parent.switchToScheme(s.code, s.name, s.status); } catch(e) { showToast(`查看方案：${s.name}`); }
+  }
+}
+
+function openEditModal(id) {
+  editTargetId = id;
+  const s = schemes.find(x => x.id === id);
+  if (s) {
+    document.getElementById('editName').value = s.name;
+    document.getElementById('editDesc').value = s.desc || '';
+  }
+  openModal('editModal');
+}
+function confirmEdit() {
+  const s = schemes.find(x => x.id === editTargetId);
+  if (s) {
+    s.name = document.getElementById('editName').value.trim() || s.name;
+    s.desc = document.getElementById('editDesc').value.trim();
+  }
+  closeModal('editModal');
+  render();
+  showToast('方案已更新');
+}
+
+function openCreateModal() { openModal('createModal'); }
+function confirmCreate() {
+  const name = document.getElementById('newName').value.trim() || '新方案';
+  const desc = document.getElementById('newDesc').value.trim();
+  const maxCode = Math.max(...schemes.map(x => parseInt(x.code.replace('SCH_','')) || 0));
+  const newCode = 'SCH_' + String(maxCode + 1).padStart(3,'0');
+  schemes.push({ id:'s'+Date.now(), code:newCode, name, ver:'1.0', status:'DRAFT', date:'', by:'当前用户', at:new Date().toISOString().slice(0,16).replace('T',' '), desc });
+  closeModal('createModal');
+  document.getElementById('newName').value = ''; document.getElementById('newDesc').value = '';
+  render(); showToast(`方案 ${newCode} 已创建`);
+}
+
+function openCopyModal() { openModal('copyModal'); }
+function confirmCopy() {
+  const desc = document.getElementById('copyDesc').value.trim() || '基于生效方案复制';
+  const src = schemes.find(s => s.status === 'EFFECTIVE');
+  if (!src) { showToast('没有已生效的方案可供复制'); closeModal('copyModal'); return; }
+  const maxCode = Math.max(...schemes.map(x => parseInt(x.code.replace('SCH_','')) || 0));
+  const newCode = 'SCH_' + String(maxCode + 1).padStart(3,'0');
+  schemes.push({ id:'s'+Date.now(), code:newCode, name:src.name+' (复制)', ver:src.ver, status:'DRAFT', date:'', by:'当前用户', at:new Date().toISOString().slice(0,16).replace('T',' '), desc });
+  closeModal('copyModal');
+  document.getElementById('copyDesc').value = '';
+  render(); showToast(`已从 ${src.code} 复制为 ${newCode}`);
+}
+
+function copyFrom(id) {
+  const src = schemes.find(s => s.id === id);
+  if (!src) return;
+  const maxCode = Math.max(...schemes.map(x => parseInt(x.code.replace('SCH_','')) || 0));
+  const newCode = 'SCH_' + String(maxCode + 1).padStart(3,'0');
+  schemes.push({ id:'s'+Date.now(), code:newCode, name:src.name+' (复制)', ver:src.ver, status:'DRAFT', date:'', by:'当前用户', at:new Date().toISOString().slice(0,16).replace('T',' '), desc:'基于 '+src.code+' 复制' });
+  render(); showToast(`已复制为 ${newCode}`);
+}
+
+function openPublishModal(id) {
+  publishTargetId = id;
+  const s = schemes.find(x => x.id === id);
+  document.getElementById('publishInfo').textContent = `方案：${s.name}（${s.code}）`;
+  openModal('publishModal');
+}
+function confirmPublish() {
+  const s = schemes.find(x => x.id === publishTargetId);
+  if (!s) return;
+  const mode = document.getElementById('publishMode').value;
+  s.status = mode === 'immediate' ? 'EFFECTIVE' : 'PUBLISHED';
+  s.date = mode === 'immediate' ? new Date().toISOString().slice(0,10) : document.getElementById('publishDate').value || '';
+  closeModal('publishModal');
+  render(); showToast(`方案 ${s.code} 已${mode === 'immediate' ? '生效' : '发布'}`);
+}
+
+document.getElementById('publishMode').addEventListener('change', function() {
+  document.getElementById('publishDateGroup').style.display = this.value === 'scheduled' ? 'block' : 'none';
+});
+
+function deleteScheme(id) {
+  if (!confirm('确定删除此 DRAFT 方案？')) return;
+  schemes = schemes.filter(x => x.id !== id);
+  render(); showToast('已删除');
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+render();
+</script>
+<script>if(window.self!==window.top)document.documentElement.className+=' iframed'</script>
+<style>.iframed .global-context{display:none!important}</style>
+</body>
+</html>

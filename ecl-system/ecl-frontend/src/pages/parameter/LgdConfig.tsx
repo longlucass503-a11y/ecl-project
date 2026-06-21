@@ -162,7 +162,7 @@ const BenchmarkCurveTab: React.FC<{
             </tr>
           ))}
           {curves.length === 0 && (
-            <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 40 }}>暂无数据</td></tr>
+            <tr><td colSpan={4}><div className="ecl-empty-row">暂无数据</div></td></tr>
           )}
         </tbody>
       </table>
@@ -306,7 +306,7 @@ const CollateralDiscountTab: React.FC<{
             </tr>
           ))}
           {list.length === 0 && (
-            <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 40 }}>暂无数据</td></tr>
+            <tr><td colSpan={3}><div className="ecl-empty-row">暂无数据</div></td></tr>
           )}
         </tbody>
       </table>
@@ -517,7 +517,7 @@ const DepreciationTab: React.FC<{
             </tr>
           ))}
           {list.length === 0 && (
-            <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 40 }}>暂无数据</td></tr>
+            <tr><td colSpan={3}><div className="ecl-empty-row">暂无数据</div></td></tr>
           )}
         </tbody>
       </table>
@@ -595,7 +595,7 @@ const LgdConfig: React.FC = () => {
 
   if (!selectedSchemeId) {
     return (
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 32px' }}>
+      <div className="ecl-page">
         <PageHeader
           title="LGD 参数配置"
           subtitle="管理违约损失率基准曲线、押品折扣率和折旧率"
@@ -632,9 +632,14 @@ const LgdConfig: React.FC = () => {
       children: <DepreciationTab selectedSchemeId={selectedSchemeId} selectedGroupId={selectedGroupId} />,
     },
   ];
+  const groupSelectorItems = groups.map((g) => ({
+    groupId: g.groupId,
+    groupName: g.groupName,
+    groupCode: g.groupCode,
+  }));
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 32px' }}>
+    <div className="ecl-page">
       <PageHeader
         title="LGD 参数配置"
         subtitle="管理违约损失率基准曲线、押品折扣率和折旧率"
@@ -647,16 +652,17 @@ const LgdConfig: React.FC = () => {
               onChange={(v) => { setSelectedSchemeId(v); setSelectedGroupId(''); }}
               options={schemes.map((s) => ({ label: `${s.schemeName}(${s.schemeCode})`, value: s.schemeId }))}
             />
-            {groups.length > 0 && (
-              <GroupSelector
-                groups={groups.map((g) => ({ groupId: g.groupId, groupName: g.groupName, groupCode: g.groupCode }))}
-                selectedId={selectedGroupId || undefined}
-                onChange={setSelectedGroupId}
-              />
-            )}
           </Space>
         }
       />
+
+      {groups.length > 0 && (
+        <GroupSelector
+          groups={groupSelectorItems}
+          selectedId={selectedGroupId || undefined}
+          onChange={setSelectedGroupId}
+        />
+      )}
 
       <Panel>
         <Tabs items={tabItems} />

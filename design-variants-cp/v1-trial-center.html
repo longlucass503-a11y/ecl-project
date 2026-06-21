@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>试算中心 - ECL 系统</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;background:var(--color-bg);color:var(--color-text);line-height:1.5;font-size:14px}
+  :root{--color-primary:#2563eb;--color-primary-light:#eff3ff;--color-primary-dark:#1d4ed8;--color-success:#059669;--color-warning:#d97706;--color-danger:#dc2626;--color-bg:#f8f9fb;--color-bg-alt:#f1f3f6;--color-surface:#fff;--color-surface-hover:#f8f9fb;--color-border:#e5e7eb;--color-border-light:#f0f1f3;--color-text:#111827;--color-text-secondary:#6b7280;--color-text-muted:#9ca3af;--radius-sm:6px;--radius-md:8px;--radius-lg:12px;--radius-full:9999px;--shadow-xs:0 1px 2px rgba(0,0,0,.03);--shadow-sm:0 1px 3px rgba(0,0,0,.04),0 1px 2px rgba(0,0,0,.03);--shadow-md:0 4px 12px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.03);--shadow-lg:0 10px 30px rgba(0,0,0,.06),0 1px 3px rgba(0,0,0,.04);--transition-fast:150ms cubic-bezier(.16,1,.3,1)}
+  .global-context{background:var(--color-surface);border-bottom:1px solid #e5e7eb;padding:12px 32px;display:flex;align-items:center;gap:24px;box-shadow:var(--shadow-xs)}
+  .context-logo{font-size:15px;font-weight:700;color:var(--color-primary);letter-spacing:-.02em}
+  .context-logo span{color:var(--color-text);font-weight:400}
+  .nav-links{display:flex;gap:4px;margin-left:auto}
+  .nav-links a{text-decoration:none;padding:5px 12px;font-size:12px;color:var(--color-text-secondary);border-radius:var(--radius-sm);cursor:pointer}
+  .nav-links a:hover{background:var(--color-bg);color:var(--color-text)}
+  .nav-links a.active{background:#e8effd;color:var(--color-primary);font-weight:500}
+  .page{max-width:1280px;margin:0 auto;padding:24px 32px}
+  .page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
+  .page-header h1{font-size:22px;font-weight:650;letter-spacing:-.02em;color:var(--color-text)}
+  .page-header .sub{font-size:14px;color:var(--color-text-secondary);margin-top:4px}
+  .panel{background:var(--color-surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-xs);border:1px solid #e5e7eb;margin-bottom:20px}
+  .panel-header{padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+  .panel-header h2{font-size:14px;font-weight:600;color:var(--color-text);letter-spacing:-.01em}
+  .panel-body{padding:20px}
+  .btn-ghost{background:none;border:none;padding:6px 12px;border-radius:var(--radius-sm);font-size:13px;color:var(--color-text-secondary);cursor:pointer}
+  .btn-ghost:hover{background:var(--color-bg);color:var(--color-text)}
+  .btn-primary{background:var(--color-primary);color:#fff;border:none;padding:6px 20px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer}
+  .btn-primary:hover{background:var(--color-primary-dark);box-shadow:0 2px 8px rgba(37,99,235,.25)}
+  .btn-outline{background:var(--color-surface);border:1px solid #e5e7eb;padding:4px 12px;border-radius:var(--radius-sm);font-size:12px;color:var(--color-text-secondary);cursor:pointer}
+  .btn-outline:hover{border-color:var(--color-primary);color:var(--color-primary)}
+  .trial-inputs{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+  .trial-field{display:flex;flex-direction:column;gap:4px}
+  .trial-field label{font-size:12px;color:var(--color-text-secondary);font-weight:500}
+  .trial-field select,.trial-field input{border:1px solid #e5e7eb;border-radius:var(--radius-sm);padding:6px 12px;font-size:13px;min-width:160px}
+  .trial-field input[type=text]{min-width:240px}
+  .radio-group{display:flex;gap:16px}
+  .radio-group label{font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer}
+
+  /* Pipeline Step */
+  .pipeline-step{border:1px solid #e5e7eb;border-radius:var(--radius-lg);margin-bottom:8px;overflow:hidden;transition:box-shadow .15s}
+  .pipeline-step:hover{box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .ps-header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--color-bg-alt);cursor:pointer;transition:background .12s;user-select:none}
+  .ps-header:hover{background:#f0f2f5}
+  .ps-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
+  .ps-icon.done{background:#059669;color:#fff}
+  .ps-icon.running{background:var(--color-primary);color:#fff;animation:pulse 1.5s infinite}
+  .ps-step-name{flex:1;font-size:13px;font-weight:500}
+  .ps-step-detail{font-size:12px;color:var(--color-text-secondary)}
+  .ps-expand{font-size:10px;color:var(--color-text-muted);transition:transform .2s;margin-left:8px}
+  .ps-header.expanded .ps-expand{transform:rotate(180deg)}
+  .ps-body{display:none;padding:16px;border-top:1px solid #e5e7eb;font-size:13px;background:var(--color-surface)}
+  .ps-body.open{display:block}
+  .result-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .result-metrics-item{background:var(--color-bg-alt);padding:10px 14px;border-radius:var(--radius-sm)}
+  .result-metrics-item .lbl{font-size:11px;color:var(--color-text-muted)}
+  .result-metrics-item .val{font-size:16px;font-weight:600;margin-top:2px}
+  .result-metrics-item .val.sub{font-size:13px;color:var(--color-text-secondary)}
+  .scenario-table{width:100%;border-collapse:collapse;font-size:12px;border-radius:var(--radius-sm);overflow:hidden}
+  .scenario-table th{text-align:left;color:var(--color-text-secondary);padding:8px 12px;background:#f1f5f9;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:10px;border-bottom:2px solid #dde1e7}
+  .scenario-table td{padding:8px 12px;border-bottom:1px solid #f0f1f3;font-size:13px;font-weight:450;background:#fff}
+  .scenario-table tr:nth-child(even) td{background:#fafbfc}
+  .scenario-table tr:last-child td{border-bottom:none}
+  .scenario-table tr:hover td{background:#eff3ff!important}
+  .scenario-table .highlight{background:#eff3ff!important;font-weight:600}
+  .scenario-table .total{font-weight:700;border-top:2px solid #dde1e7;background:#f8f9fb}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+  /* Toast */
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--color-text);color:#f1f5f9;padding:10px 18px;border-radius:var(--radius-md);font-size:13px;z-index:999;opacity:0;transform:translateY(10px);transition:all .25s cubic-bezier(.16,1,.3,1);pointer-events:none}
+  .toast.show{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="global-context">
+  <div class="context-logo">ECL <span>减值计量系统</span></div>
+  <div class="nav-links">
+    <a href="#" onclick="navigate('monitor')">跑批监控</a>
+    <a href="#" onclick="navigate('trial')" class="active">试算中心</a>
+    <a href="#" onclick="navigate('scheme')">方案管理</a>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-header">
+    <div><h1>试算中心</h1><div class="sub">快速验证参数调整后的 ECL 计算结果，不写入正式跑批数据</div></div>
+  </div>
+
+  <!-- Input -->
+  <div class="panel">
+    <div class="panel-header"><h2>试算条件</h2><span style="font-size:12px;color:var(--color-text-muted)">DRAFT 模式 · 不写入正式数据</span></div>
+    <div class="panel-body">
+      <div class="trial-inputs">
+        <div class="trial-field">
+          <label>选择方案</label>
+          <select id="trialScheme"><option>SCH_003 · 2026年Q3 v2.1 (DRAFT)</option><option>SCH_002 · 2026年Q2 (EFFECTIVE)</option></select>
+        </div>
+        <div class="trial-field">
+          <label>试算日期</label>
+          <input type="date" value="2026-06-18">
+        </div>
+        <div class="trial-field" style="flex:1;">
+          <label style="margin-bottom:3px;">试算范围</label>
+          <div class="radio-group">
+            <label><input type="radio" name="scope" checked> 单笔借据</label>
+            <label><input type="radio" name="scope"> 批量试算（≤100笔）</label>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;align-items:center;">
+        <div style="display:flex;flex-direction:row;align-items:center;gap:8px;flex:1;">
+          <input type="text" id="assetId" value="AST20260618000001" placeholder="借据 ID" style="border:1px solid #e5e7eb;border-radius:var(--radius-sm);padding:6px 12px;font-size:13px;width:280px;">
+          <button class="btn-ghost" style="border:1px solid #e5e7eb;font-size:12px;" onclick="showToast('借据信息已加载：XXX地产公司，CRR_5，余额200万')">查询</button>
+        </div>
+        <button class="btn-primary" onclick="runTrial()" id="runBtn">▶ 开始试算</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result (initially hidden) -->
+  <div id="resultPanel" class="panel" style="display:none;">
+    <div class="panel-header">
+      <h2>试算结果</h2>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="font-size:12px;color:var(--color-text-muted)" id="jobIdLabel">JOB_TRIAL_20260618_001</span>
+        <span id="statusBadge" style="font-size:12px;display:flex;align-items:center;gap:4px;background:#ecfdf5;color:#059669;padding:2px 8px;border-radius:4px;">✓ 试算完成</span>
+        <button class="btn-outline" onclick="showToast('试算报告已导出')">📄 导出报告</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div style="display:flex;gap:16px;padding-bottom:14px;border-bottom:1px solid #e5e7eb;margin-bottom:14px;font-size:13px;flex-wrap:wrap;">
+        <span><strong>借据：</strong><span id="resultAssetId">AST20260618000001</span></span>
+        <span style="color:var(--color-text-secondary)" id="resultGroup">GRP_001 对公业务</span>
+        <span style="color:var(--color-text-secondary)" id="resultProduct">产品：公司贷款</span>
+        <span style="color:var(--color-text-secondary)" id="resultRating">CRR 评级：CRR_5</span>
+      </div>
+
+      <!-- Step 1: Stage -->
+      <div class="pipeline-step expanded" id="step1">
+        <div class="ps-header expanded" onclick="toggleStep(this)">
+          <div class="ps-icon done">✓</div>
+          <span class="ps-step-name">① 阶段判定</span>
+          <span class="ps-step-detail">FORWARD 规则 #2 → <strong>Stage 2</strong></span>
+          <span class="ps-expand">▼</span>
+        </div>
+        <div class="ps-body open">
+          <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px;">匹配规则：FORWARD #2 (优先级 2) — 逾期 31~90天 或 CRR 下降 ≥ 阈值</div>
+          <div class="result-metrics">
+            <div class="result-metrics-item"><div class="lbl">逾期天数</div><div class="val">45 天</div></div>
+            <div class="result-metrics-item"><div class="lbl">CRR 下降</div><div class="val">3 级</div></div>
+            <div class="result-metrics-item"><div class="lbl">违约标识</div><div class="val sub">否</div></div>
+          </div>
+          <div style="margin-top:8px;padding:8px 12px;background:var(--color-primary-light);border-radius:var(--radius-sm);font-size:12px;color:var(--color-primary-dark);">
+            ℹ ROLLBACK 检查：不满足回跳条件 → 保持 Stage 2
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: PD -->
+      <div class="pipeline-step" id="step2">
+        <div class="ps-header" onclick="toggleStep(this)">
+          <div class="ps-icon done">✓</div>
+          <span class="ps-step-name">② PD 取值</span>
+          <span class="ps-step-detail">三情景加权 PD = <strong>0.036%</strong></span>
+          <span class="ps-expand">▼</span>
+        </div>
+        <div class="ps-body">
+          <table class="scenario-table">
+            <tr><th>情景</th><th>权重</th><th>12M PD</th><th>加权 PD</th></tr>
+            <tr><td>乐观情景 (OPTIMISTIC)</td><td>20%</td><td>0.010%</td><td>0.002%</td></tr>
+            <tr class="highlight"><td>基准情景 (BASELINE)</td><td><strong>60%</strong></td><td>0.030%</td><td><strong>0.018%</strong></td></tr>
+            <tr><td>悲观情景 (PESSIMISTIC)</td><td>20%</td><td>0.080%</td><td>0.016%</td></tr>
+            <tr class="total"><td colspan="3">PD_12M 加权值</td><td>0.036%</td></tr>
+          </table>
+          <div style="margin-top:8px;font-size:12px;color:var(--color-text-secondary);">存续期 PD（Stage 2 适用，360 个月）= 12.654%</div>
+        </div>
+      </div>
+
+      <!-- Step 3: LGD -->
+      <div class="pipeline-step" id="step3">
+        <div class="ps-header" onclick="toggleStep(this)">
+          <div class="ps-icon done">✓</div>
+          <span class="ps-step-name">③ LGD 取值</span>
+          <span class="ps-step-detail">押品覆盖 → LGD = <strong>20.00%</strong></span>
+          <span class="ps-expand">▼</span>
+        </div>
+        <div class="ps-body">
+          <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px;">担保类型：房产抵押 · 产品类型：公司贷款</div>
+          <div class="result-metrics">
+            <div class="result-metrics-item"><div class="lbl">LGD 基准值</div><div class="val">20.00%</div></div>
+            <div class="result-metrics-item"><div class="lbl">押品估值</div><div class="val">¥3,000,000</div></div>
+            <div class="result-metrics-item"><div class="lbl">押品净值 (折后)</div><div class="val">¥2,422,500</div><div style="font-size:11px;color:var(--color-text-muted)">折扣 15% · 折旧 5%</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: ECL -->
+      <div class="pipeline-step" id="step4">
+        <div class="ps-header" onclick="toggleStep(this)">
+          <div class="ps-icon done">✓</div>
+          <span class="ps-step-name">④ ECL 计算</span>
+          <span class="ps-step-detail">ECL = <strong>¥144.00</strong></span>
+          <span class="ps-expand">▼</span>
+        </div>
+        <div class="ps-body">
+          <div class="result-metrics" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+            <div class="result-metrics-item"><div class="lbl">EAD</div><div class="val">¥2,000,000</div></div>
+            <div class="result-metrics-item"><div class="lbl">PD (加权)</div><div class="val">0.036%</div></div>
+            <div class="result-metrics-item"><div class="lbl">LGD</div><div class="val">20.00%</div></div>
+            <div class="result-metrics-item" style="background:#e8effd;"><div class="lbl">ECL 加权</div><div class="val" style="color:var(--color-primary);">¥144.00</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5: Overlay -->
+      <div class="pipeline-step" id="step5">
+        <div class="ps-header" onclick="toggleStep(this)">
+          <div class="ps-icon done">✓</div>
+          <span class="ps-step-name">⑤ 管理层叠加</span>
+          <span class="ps-step-detail">无命中规则</span>
+          <span class="ps-expand">▼</span>
+        </div>
+        <div class="ps-body">
+          <div style="font-size:12px;color:var(--color-text-secondary);">借据行业=房地产(J) · 检查叠加规则... → 无命中（需行业=制造业(C) 或 批发零售(F)）</div>
+        </div>
+      </div>
+
+      <!-- Final Result Bar -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px;padding:16px;background:#e8effd;border-radius:var(--radius-lg);border:1px solid #d1ddfb;">
+        <div><div style="font-size:11px;color:var(--color-primary-dark)">阶段</div><div style="font-size:20px;font-weight:700;color:var(--color-primary-dark)" id="finalStage">Stage 2</div></div>
+        <div><div style="font-size:11px;color:var(--color-primary-dark)">EAD</div><div style="font-size:20px;font-weight:700;color:var(--color-primary-dark)" id="finalEad">¥2,000,000</div></div>
+        <div><div style="font-size:11px;color:var(--color-primary-dark)">LGD</div><div style="font-size:20px;font-weight:700;color:var(--color-primary-dark)" id="finalLgd">20.00%</div></div>
+        <div><div style="font-size:11px;color:var(--color-primary-dark)">ECL 最终</div><div style="font-size:26px;font-weight:700;color:var(--color-primary-dark)" id="finalEcl">¥144.00</div></div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button class="btn-ghost" style="font-size:12px;border:1px solid #e5e7eb;" onclick="showToast('JSON 已展开')">展开完整 JSON</button>
+        <button class="btn-outline" onclick="showToast('试算报告已导出')">📄 导出试算报告</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function toggleStep(header) {
+  header.classList.toggle('expanded');
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function runTrial() {
+  const btn = document.getElementById('runBtn');
+  const original = btn.textContent;
+  btn.textContent = '⚙ 计算中...';
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+
+  document.getElementById('resultPanel').style.display = 'block';
+  document.getElementById('statusBadge').textContent = '⟳ 计算中...';
+  document.getElementById('statusBadge').style.background = '#dbeafe';
+  document.getElementById('statusBadge').style.color = '#1e40af';
+
+  // Simulate async calculation with step-by-step animation
+  let completed = 0;
+  const steps = ['step1', 'step2', 'step3', 'step4', 'step5'];
+  const interval = setInterval(() => {
+    if (completed > 0) {
+      const prevStep = document.getElementById(steps[completed - 1]);
+      const prevHeader = prevStep.querySelector('.ps-header');
+      const prevIcon = prevStep.querySelector('.ps-icon');
+      prevHeader.classList.add('expanded');
+      prevStep.querySelector('.ps-body').classList.remove('open');
+    }
+    if (completed < steps.length) {
+      const step = document.getElementById(steps[completed]);
+      const header = step.querySelector('.ps-header');
+      const icon = step.querySelector('.ps-icon');
+      step.style.display = 'block';
+      icon.className = 'ps-icon running';
+      icon.textContent = '⟳';
+      header.classList.add('expanded');
+      step.querySelector('.ps-body').classList.add('open');
+      completed++;
+    } else {
+      clearInterval(interval);
+      // All done
+      document.getElementById('statusBadge').textContent = '✓ 试算完成 23ms';
+      document.getElementById('statusBadge').style.background = '#d1fae5';
+      document.getElementById('statusBadge').style.color = '#065f46';
+      btn.textContent = original;
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      showToast('试算完成，耗时 23ms');
+    }
+  }, 400);
+}
+
+function navigate(page) {
+  document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+  if (page === 'monitor') {
+    window.location.href = 'v1-clean-professional.html';
+  } else if (page === 'trial') {
+    document.querySelector('.nav-links a:nth-child(2)').classList.add('active');
+  } else if (page === 'scheme') {
+    window.location.href = 'v1-scheme-overview.html';
+  }
+}
+</script>
+
+<style>.iframed .global-context{display:none!important}</style>
+<script>(function(){if(window.self!==window.top)document.documentElement.className+=" iframed"})();</script>
+</body>
+</html>

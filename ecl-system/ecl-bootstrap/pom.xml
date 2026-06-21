@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bank.ecl</groupId>
+        <artifactId>ecl-system</artifactId>
+        <version>3.1.0</version>
+    </parent>
+
+    <artifactId>ecl-bootstrap</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.bank.ecl</groupId>
+            <artifactId>ecl-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bank.ecl</groupId>
+            <artifactId>ecl-report</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bank.ecl</groupId>
+            <artifactId>ecl-calculation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bank.ecl</groupId>
+            <artifactId>ecl-engine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bank.ecl</groupId>
+            <artifactId>ecl-parameter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bank.ecl</groupId>
+            <artifactId>ecl-data</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bank.ecl</groupId>
+            <artifactId>ecl-common</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.bank.ecl.EclApplication</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

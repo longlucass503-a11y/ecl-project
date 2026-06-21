@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECL 系统设计 - 方案 V3 分层清晰</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+    background: #f0f2f5;
+    color: #1a1d29;
+    line-height: 1.5;
+  }
+
+  :root {
+    --color-bg: #f0f2f5;
+    --color-surface: #ffffff;
+    --color-surface-alt: #f8f9fb;
+    --color-border: #e4e6eb;
+    --color-primary: #0052cc;
+    --color-primary-light: #e6f0ff;
+    --color-primary-dark: #0043a4;
+    --color-success: #0b8750;
+    --color-warning: #d9822b;
+    --color-danger: #d32f2f;
+    --color-text: #1a1d29;
+    --color-text-secondary: #5e6270;
+    --color-text-muted: #979ba8;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+    --shadow-md: 0 3px 10px rgba(0,0,0,0.06);
+  }
+
+  /* ─── Top App Bar ─── */
+  .app-bar {
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    padding: 0 32px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .app-bar-left { display: flex; align-items: center; gap: 32px; }
+  .app-bar-logo {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .app-bar-logo .logomark {
+    width: 24px; height: 24px;
+    background: var(--color-primary);
+    border-radius: 5px;
+    display: flex;
+    align-items: center; justify-content: center;
+    color: white; font-size: 12px;
+  }
+  .app-nav {
+    display: flex;
+    gap: 4px;
+  }
+  .app-nav a {
+    text-decoration: none;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-sm);
+    transition: all 0.15s;
+  }
+  .app-nav a:hover { background: var(--color-surface-alt); color: var(--color-text); }
+  .app-nav a.active {
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    font-weight: 500;
+  }
+  .app-bar-right { display: flex; align-items: center; gap: 12px; }
+
+  /* ─── Context Bar ─── */
+  .context-bar {
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    padding: 10px 32px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    box-shadow: var(--shadow-sm);
+  }
+  .ctx-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+  }
+  .ctx-group label { color: var(--color-text-secondary); white-space: nowrap; }
+  .ctx-select {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 4px 26px 4px 8px;
+    font-size: 13px;
+    color: var(--color-text);
+    background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%235e6270' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 6px center;
+    appearance: none;
+    cursor: pointer;
+    min-width: 120px;
+  }
+  .ctx-badge {
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-weight: 500;
+  }
+  .ctx-badge.draft { background: #f0f0f0; color: #666; }
+  .ctx-badge.active { background: #e3f5e8; color: #0b8750; }
+  .ctx-divider { width: 1px; height: 20px; background: var(--color-border); }
+  .ctx-actions { display: flex; gap: 6px; margin-left: auto; }
+
+  /* ─── Page ─── */
+  .page { padding: 20px 32px; max-width: 1320px; }
+
+  /* ─── Content Header ─── */
+  .content-header {
+    margin-bottom: 20px;
+  }
+  .content-header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+  }
+  .content-header .sub {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    margin-top: 2px;
+  }
+
+  /* ─── Dashboard Layout ─── */
+  .dash-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .card {
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-header h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; color: var(--color-text-secondary); }
+  .card-body { padding: 16px; }
+
+  /* ─── Stat Row ─── */
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .stat-item {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+  }
+  .stat-item .stat-num { font-size: 22px; font-weight: 700; }
+  .stat-item .stat-lbl { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+  .stat-item .stat-trend { font-size: 11px; margin-top: 4px; }
+  .stat-item .stat-trend.up { color: var(--color-success); }
+  .stat-item .stat-trend.down { color: var(--color-danger); }
+
+  /* ─── Task List (compact) ─── */
+  .task-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .task-item:last-child { border-bottom: none; }
+  .task-status {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .task-status.success { background: var(--color-success); }
+  .task-status.failed { background: var(--color-danger); }
+  .task-status.running { background: var(--color-primary); animation: blink 1s ease infinite; }
+  .task-info { flex: 1; min-width: 0; }
+  .task-info .task-name { font-size: 13px; font-weight: 500; }
+  .task-info .task-meta { font-size: 11px; color: var(--color-text-muted); margin-top: 1px; }
+  .task-stats { font-size: 12px; color: var(--color-text-secondary); text-align: right; white-space: nowrap; }
+  .task-stats strong { color: var(--color-text); }
+  .task-action {
+    font-size: 12px;
+    color: var(--color-primary);
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+  .task-action:hover { background: var(--color-primary-light); }
+
+  /* ─── Step Status List ─── */
+  .step-list { }
+  .step-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .step-row:last-child { border-bottom: none; }
+  .step-indicator {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .step-indicator.done { background: var(--color-success); color: white; }
+  .step-indicator.active { background: var(--color-primary); color: white; }
+  .step-indicator.pending { background: #e4e6eb; color: var(--color-text-muted); }
+  .step-indicator.error { background: var(--color-danger); color: white; }
+  .step-label { flex: 1; font-size: 13px; }
+  .step-label .step-sub { font-size: 11px; color: var(--color-text-muted); }
+  .step-time { font-size: 12px; color: var(--color-text-secondary); }
+
+  /* ─── Error Distribution ─── */
+  .error-dist { }
+  .error-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 13px;
+  }
+  .error-row .err-code { font-family: monospace; font-size: 12px; color: var(--color-text-secondary); min-width: 70px; }
+  .error-row .err-bar { flex: 1; height: 6px; background: #e4e6eb; border-radius: 6px; overflow: hidden; }
+  .error-row .err-fill { height: 100%; border-radius: 6px; }
+  .error-row .err-count { min-width: 24px; text-align: right; font-weight: 500; }
+
+  /* ─── Full-width Section ─── */
+  .section-full { margin-bottom: 16px; }
+
+  /* ─── Buttons ─── */
+  .btn-primary {
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    padding: 5px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .btn-primary:hover { background: var(--color-primary-dark); }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+  }
+  .btn-ghost:hover { background: var(--color-surface-alt); color: var(--color-text); }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  @media (max-width: 900px) {
+    .dash-grid { grid-template-columns: 1fr; }
+    .stat-row { grid-template-columns: repeat(2, 1fr); }
+    .context-bar { flex-wrap: wrap; }
+    .app-nav { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ App Bar ═══ -->
+<div class="app-bar">
+  <div class="app-bar-left">
+    <div class="app-bar-logo">
+      <span class="logomark">E</span>
+      ECL 减值计量系统
+    </div>
+    <nav class="app-nav">
+      <a href="#">方案管理</a>
+      <a href="#">参数配置</a>
+      <a href="#" class="active">跑批监控</a>
+      <a href="#">试算中心</a>
+      <a href="#">报表查询</a>
+    </nav>
+  </div>
+  <div class="app-bar-right">
+    <span style="font-size:12px;color:var(--color-text-muted);">模型人员</span>
+    <span style="width:28px;height:28px;border-radius:50%;background:var(--color-primary-light);color:var(--color-primary);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">管</span>
+  </div>
+</div>
+
+<!-- ═══ Context Bar ═══ -->
+<div class="context-bar">
+  <div class="ctx-group">
+    <label>当前方案</label>
+    <select class="ctx-select">
+      <option>SCH_003 · 2026年Q3 v2.1</option>
+      <option>SCH_002 · 2026年Q2</option>
+    </select>
+    <span class="ctx-badge active">已生效</span>
+  </div>
+  <div class="ctx-divider"></div>
+  <div class="ctx-group">
+    <label>风险分组</label>
+    <select class="ctx-select">
+      <option>GRP_001 对公业务</option>
+      <option>GRP_002 非银金融</option>
+      <option>GRP_003 银行同业</option>
+    </select>
+  </div>
+  <div class="ctx-divider"></div>
+  <div class="ctx-group" style="font-size:12px;color:var(--color-text-muted);">
+    版本 2.1 · 生效 2026-06-01
+  </div>
+  <div class="ctx-actions">
+    <button class="btn-ghost">📋 复制方案</button>
+    <button class="btn-primary">▶ 试算</button>
+  </div>
+</div>
+
+<!-- ═══ Page ═══ -->
+<div class="page">
+
+  <!-- Header -->
+  <div class="content-header">
+    <h1>跑批监控</h1>
+    <div class="sub">ECL 批量计算任务的执行状态与历史记录</div>
+  </div>
+
+  <!-- Stat Row -->
+  <div class="stat-row">
+    <div class="stat-item">
+      <div class="stat-num" style="color:var(--color-primary);">3</div>
+      <div class="stat-lbl">今日任务</div>
+      <div class="stat-trend up">↑ 较昨日 +1</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" style="color:var(--color-success);">2</div>
+      <div class="stat-lbl">执行成功</div>
+      <div class="stat-trend up">2,000,000 笔完成</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" style="color:var(--color-warning);">1</div>
+      <div class="stat-lbl">执行异常</div>
+      <div class="stat-trend down">12 笔跳过</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">27.2s</div>
+      <div class="stat-lbl">平均耗时</div>
+      <div class="stat-trend up">↓ 3.1s 较昨日</div>
+    </div>
+  </div>
+
+  <!-- Two-column dashboard -->
+  <div class="dash-grid">
+    <!-- Left: Running task + step progress -->
+    <div class="card">
+      <div class="card-header">
+        <h3>执行中的任务</h3>
+        <span style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--color-primary);">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--color-primary);animation:blink 1s ease infinite;"></span>
+          运行中
+        </span>
+      </div>
+      <div class="card-body">
+        <div style="margin-bottom:12px;">
+          <div style="font-size:14px;font-weight:500;">JOB_20260618_001</div>
+          <div style="font-size:12px;color:var(--color-text-secondary);">2026年Q3 · 2026-06-18 · 进度 423,891 / 1,000,000</div>
+        </div>
+        <div style="height:6px;background:#e4e6eb;border-radius:6px;overflow:hidden;margin-bottom:14px;">
+          <div style="width:42.4%;height:100%;background:linear-gradient(90deg,var(--color-primary),#4f8df5);border-radius:6px;transition:width 0.5s;"></div>
+        </div>
+        <div class="step-list">
+          <div class="step-row">
+            <div class="step-indicator done">✓</div>
+            <div class="step-label">参数加载 <span class="step-sub">2.1s</span></div>
+          </div>
+          <div class="step-row">
+            <div class="step-indicator done">✓</div>
+            <div class="step-label">风险分组匹配 <span class="step-sub">3.5s</span></div>
+          </div>
+          <div class="step-row">
+            <div class="step-indicator done">✓</div>
+            <div class="step-label">阶段判定 <span class="step-sub">2.8s</span></div>
+          </div>
+          <div class="step-row">
+            <div class="step-indicator active">4</div>
+            <div class="step-label" style="font-weight:500;">PD 计算 <span class="step-sub">执行中...</span></div>
+            <div class="step-time" style="color:var(--color-primary);">~8.5s</div>
+          </div>
+          <div class="step-row">
+            <div class="step-indicator pending">5</div>
+            <div class="step-label" style="color:var(--color-text-muted);">ECL 计算</div>
+          </div>
+          <div class="step-row">
+            <div class="step-indicator pending">6</div>
+            <div class="step-label" style="color:var(--color-text-muted);">写表 + 对账</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Error distribution -->
+    <div class="card">
+      <div class="card-header">
+        <h3>异常分布（全部任务）</h3>
+        <span style="font-size:12px;color:var(--color-text-muted);">总计 12 笔异常</span>
+      </div>
+      <div class="card-body">
+        <div class="error-dist">
+          <div class="error-row">
+            <span class="err-code">ECL_001</span>
+            <div class="err-bar"><div class="err-fill" style="width:42%;background:var(--color-warning);"></div></div>
+            <span class="err-count" style="color:var(--color-warning);">5</span>
+          </div>
+          <div class="error-row">
+            <span class="err-code">ECL_005</span>
+            <div class="err-bar"><div class="err-fill" style="width:58%;background:var(--color-danger);"></div></div>
+            <span class="err-count" style="color:var(--color-danger);">7</span>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding:8px 12px;background:#f8f9fb;border-radius:var(--radius-sm);font-size:12px;color:var(--color-text-secondary);">
+          ⚠ 5 笔因 PD 查无记录阻断，7 笔对账不符
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full-width: Task History -->
+  <div class="card section-full">
+    <div class="card-header">
+      <h3>历史任务</h3>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select class="ctx-select" style="min-width:100px;">
+          <option>全部状态</option>
+          <option>成功</option>
+          <option>失败</option>
+        </select>
+        <input type="date" class="ctx-select" style="min-width:120px;" value="2026-06-18">
+        <button class="btn-ghost" style="border:none;">↻</button>
+        <button class="btn-primary">＋ 新建跑批</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <div class="task-item" style="padding:12px 16px;">
+        <span class="task-status success"></span>
+        <div class="task-info">
+          <div class="task-name">JOB_20260617_001</div>
+          <div class="task-meta">2026年Q3 · 2026-06-17 · 100% 完成</div>
+        </div>
+        <div class="task-stats"><strong>1,000K</strong> 笔 · <strong>26.8s</strong></div>
+        <span class="task-action">查看明细</span>
+        <span class="task-action">异常详情</span>
+      </div>
+      <div class="task-item" style="padding:12px 16px;">
+        <span class="task-status failed"></span>
+        <div class="task-info">
+          <div class="task-name">JOB_20260616_001</div>
+          <div class="task-meta">2026年Q1 · 2026-06-16 · 12 笔异常</div>
+        </div>
+        <div class="task-stats"><strong>500K</strong> 笔 · <strong>12.3s</strong></div>
+        <span class="task-action">查看异常</span>
+        <span class="task-action">重新跑批</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full-width: Error detail -->
+  <div class="card section-full">
+    <div class="card-header">
+      <h3>异常明细 — JOB_20260616_001</h3>
+      <div style="display:flex;gap:8px;">
+        <select class="ctx-select" style="min-width:100px;">
+          <option>全部级别</option>
+          <option>阻断</option>
+          <option>警告</option>
+        </select>
+        <button class="btn-ghost">批量重算</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <div style="display:grid;grid-template-columns:120px 100px 1fr auto;gap:8px;padding:8px 16px;font-size:12px;font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid #f0f0f0;">
+        <span>借据 ID</span>
+        <span>异常码</span>
+        <span>引擎步骤</span>
+        <span>操作</span>
+      </div>
+      <div class="task-item" style="padding:8px 16px;">
+        <span class="task-status failed"></span>
+        <div class="task-info">
+          <div class="task-name" style="font-family:monospace;font-size:12px;">AST2026061600001</div>
+        </div>
+        <span style="font-size:12px;font-family:monospace;color:var(--color-danger);">ECL_001</span>
+        <span style="font-size:12px;color:var(--color-text-secondary);">6.3 PD 计算</span>
+        <span class="task-action">详情</span>
+        <span class="task-action">修正重算</span>
+      </div>
+      <div class="task-item" style="padding:8px 16px;">
+        <span class="task-status failed"></span>
+        <div class="task-info">
+          <div class="task-name" style="font-family:monospace;font-size:12px;">AST2026061600002</div>
+        </div>
+        <span style="font-size:12px;font-family:monospace;color:var(--color-danger);">ECL_001</span>
+        <span style="font-size:12px;color:var(--color-text-secondary);">6.3 PD 计算</span>
+        <span class="task-action">详情</span>
+        <span class="task-action">修正重算</span>
+      </div>
+      <div class="task-item" style="padding:8px 16px;">
+        <span class="task-status failed"></span>
+        <div class="task-info">
+          <div class="task-name" style="font-family:monospace;font-size:12px;">AST2026061600015</div>
+        </div>
+        <span style="font-size:12px;font-family:monospace;color:var(--color-danger);">ECL_005</span>
+        <span style="font-size:12px;color:var(--color-text-secondary);">7.5 对账校验</span>
+        <span class="task-action">详情</span>
+        <span class="task-action">修正重算</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

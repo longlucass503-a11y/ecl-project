@@ -192,11 +192,16 @@ const OverlayConfig: React.FC = () => {
     PERCENTAGE: 'green',
     FIXED: 'orange',
   };
+  const groupSelectorItems = groups.map((g) => ({
+    groupId: g.groupId,
+    groupName: g.groupName,
+    groupCode: g.groupCode,
+  }));
 
   // ─── 渲染 ───
   if (!selectedSchemeId) {
     return (
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 32px' }}>
+      <div className="ecl-page">
         <PageHeader
           title="管理层叠加配置"
           subtitle="定义管理层叠加规则，按风险分组对 PD/LGD/CCF/EAD 进行调整"
@@ -217,7 +222,7 @@ const OverlayConfig: React.FC = () => {
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 32px' }}>
+    <div className="ecl-page">
       <PageHeader
         title="管理层叠加配置"
         subtitle="定义管理层叠加规则，按风险分组对 PD/LGD/CCF/EAD 进行调整"
@@ -230,16 +235,17 @@ const OverlayConfig: React.FC = () => {
               onChange={(v) => { setSelectedSchemeId(v); setSelectedGroupId(''); }}
               options={schemes.map((s) => ({ label: `${s.schemeName}(${s.schemeCode})`, value: s.schemeId }))}
             />
-            {groups.length > 0 && (
-              <GroupSelector
-                groups={groups.map((g) => ({ groupId: g.groupId, groupName: g.groupName, groupCode: g.groupCode }))}
-                selectedId={selectedGroupId || undefined}
-                onChange={setSelectedGroupId}
-              />
-            )}
           </Space>
         }
       />
+
+      {groups.length > 0 && (
+        <GroupSelector
+          groups={groupSelectorItems}
+          selectedId={selectedGroupId || undefined}
+          onChange={setSelectedGroupId}
+        />
+      )}
 
       <Panel
         extra={
@@ -300,7 +306,7 @@ const OverlayConfig: React.FC = () => {
               </tr>
             ))}
             {rules.length === 0 && (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 40 }}>暂无数据</td></tr>
+              <tr><td colSpan={9}><div className="ecl-empty-row">暂无数据</div></td></tr>
             )}
           </tbody>
         </table>
