@@ -286,6 +286,24 @@ class StageEngineTest {
     }
 
     @Test
+    void shouldTriggerCrrDropWithCompositeKey() {
+        CrrRatingDropRuleEntity dropRule = crrDropRule("GRP_001", "CRR3", 2);
+        when(crrDropRuleMapper.selectList(any())).thenReturn(List.of(dropRule));
+        when(stageRuleMapper.selectList(any())).thenReturn(List.of());
+
+        AssetInput asset = asset("GRP_001", Stage.STAGE_1, 0, "CRR3",
+                null, null, null, 3);
+        JobContext ctx = jobCtx("SCH_001", List.of(asset));
+
+        engine.execute(ctx);
+
+        // CRR drop of 3 levels >= threshold of 2, but no forward rule matches.
+        // Composite key lookup (groupId|INTERNAL_CRR|INTERNAL_CRR|CRR3) must work.
+        assertEquals(Stage.STAGE_1, asset.getStageResult().getStage());
+        assertTrue(asset.getStageResult().isExceptionFlag());
+    }
+
+    @Test
     void shouldTreatNullLastStageAsStage1() {
         String schemeId = "SCH_001";
         String stage3Cond = "{\"overdue_days\":{\"min\":91}}";

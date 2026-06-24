@@ -208,11 +208,20 @@ public class StageConditionEvaluator {
         if (currentRating == null || dropLevels == null) {
             return false;
         }
-        Integer threshold = crrDropMap.get(currentRating);
+        String key = String.join("|",
+                nvl(asset.getGroupId()),
+                "INTERNAL_CRR",
+                "INTERNAL_CRR",
+                nvl(currentRating));
+        Integer threshold = crrDropMap.get(key);
         if (threshold == null) {
             return false;  // 该评级无规则 → 不满足
         }
         return dropLevels >= threshold;
+    }
+
+    private static String nvl(String value) {
+        return value != null ? value : "";
     }
 
     // ======================== 反射字段访问 ========================
