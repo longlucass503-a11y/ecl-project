@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -43,29 +44,45 @@ public class OverlayEngine implements EclEngine {
             return;
         }
 
+        LocalDate calcDate = ctx.getCalcDate();
+
         for (CustomerContext c : customers) {
             if (c == null || c.getAssets() == null) continue;
             for (AssetInput a : c.getAssets()) {
                 if (a == null) continue;
-                processAsset(a, rulesByGroup);
+                processAsset(a, rulesByGroup, calcDate);
             }
         }
         log.info("[6.7 Overlay] complete");
     }
 
-    private void processAsset(AssetInput a, Map<String, List<OverlayRuleEntity>> rulesByGroup) {
+    private void processAsset(AssetInput a, Map<String, List<OverlayRuleEntity>> rulesByGroup, LocalDate calcDate) {
         double ecl = a.getEclValue();
         String groupId = a.getGroupId();
         List<OverlayRuleEntity> rules = rulesByGroup.getOrDefault(groupId, Collections.emptyList());
 
         OverlayRuleEntity bestRule = null;
         double bestRatio = Double.NEGATIVE_INFINITY;
+        Integer bestPriority = null;
 
         for (OverlayRuleEntity rule : rules) {
+            // 日期过滤：有效期早于计算日，或过期日早于计算日则跳过
+            if (calcDate != null) {
+                if (rule.getEffectiveDate() != null && rule.getEffectiveDate().isAfter(calcDate)) continue;
+                if (rule.getExpiryDate() != null && rule.getExpiryDate().isBefore(calcDate)) continue;
+            }
+
             if (StageConditionEvaluator.evaluate(rule.getConditions(), a, null)) {
-                double ratio = computeEquivalentRatio(rule, a.getTotalEad());
-                if (ratio > bestRatio) {
+                Double ratio = computeEquivalentRatio(rule, a.getTotalEad());
+                // FIXED 类型且 EAD <= 0 时不选此规则
+                if (ratio == null) continue;
+
+                int thisPriority = rule.getPriority() != null ? rule.getPriority() : Integer.MAX_VALUE;
+                int currBestPriority = bestPriority != null ? bestPriority : Integer.MAX_VALUE;
+
+                if (ratio > bestRatio || (ratio == bestRatio && thisPriority < currBestPriority)) {
                     bestRatio = ratio;
+                    bestPriority = rule.getPriority();
                     bestRule = rule;
                 }
             }
@@ -74,17 +91,18 @@ public class OverlayEngine implements EclEngine {
         double overlay = 0.0;
         if (bestRule != null) {
             overlay = computeOverlay(bestRule, a.getTotalEad());
+            a.setSelectedOverlayId(bestRule.getRuleId());
         }
         a.setOverlayAmount(overlay);
         a.setEclFinal(ecl + overlay);
     }
 
-    private double computeEquivalentRatio(OverlayRuleEntity rule, double ead) {
+    private Double computeEquivalentRatio(OverlayRuleEntity rule, double ead) {
         double val = rule.getAdjustmentValue() != null ? rule.getAdjustmentValue().doubleValue() : 0.0;
         return switch (rule.getAdjustmentType()) {
             case "ADDBP" -> val / 10000.0;
             case "PERCENTAGE" -> val;
-            case "FIXED" -> ead > 0 ? val / ead : Double.MAX_VALUE;
+            case "FIXED" -> ead > 0 ? val / ead : null;
             default -> 0.0;
         };
     }

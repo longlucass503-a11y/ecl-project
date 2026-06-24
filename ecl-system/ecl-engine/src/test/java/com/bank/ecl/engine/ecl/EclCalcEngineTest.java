@@ -5,6 +5,7 @@ import com.bank.ecl.engine.stage.StageResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -67,5 +68,29 @@ class EclCalcEngineTest {
         engine.execute(c);
         assertEquals(4.0, a1.getEclValue(), 0.01);   // 0.02 x 0.4 x 500
         assertEquals(22.5, a2.getEclValue(), 0.01);  // 0.05 x 0.45 x 1000
+    }
+
+    @Test
+    void shouldCalculateWeightedEclFromPdScenarios() {
+        AssetInput asset = asset(0.0, 0.45, 1000.0);
+
+        PdScenarioResult base = new PdScenarioResult();
+        base.setScenarioType("BASE");
+        base.setScenarioName("基准");
+        base.setWeight(BigDecimal.valueOf(0.6));
+        base.setPdValue(0.02);
+
+        PdScenarioResult pess = new PdScenarioResult();
+        pess.setScenarioType("PESS");
+        pess.setScenarioName("悲观");
+        pess.setWeight(BigDecimal.valueOf(0.4));
+        pess.setPdValue(0.05);
+
+        asset.setPdScenarioResults(List.of(base, pess));
+
+        engine.execute(ctx(asset));
+
+        assertEquals(14.4, asset.getEclValue(), 0.01);
+        assertEquals(2, asset.getEclScenarioResults().size());
     }
 }

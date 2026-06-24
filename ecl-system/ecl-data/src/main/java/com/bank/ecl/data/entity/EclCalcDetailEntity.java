@@ -43,9 +43,13 @@ public class EclCalcDetailEntity {
 
     private String eadException;
 
+    private String eadBreakdown;
+
     private BigDecimal lgdValue;
 
     private String lgdException;
+
+    private String lgdDetails;
 
     private BigDecimal eclWeighted;
 

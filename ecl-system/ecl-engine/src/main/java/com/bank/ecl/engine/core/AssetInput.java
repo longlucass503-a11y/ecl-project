@@ -228,4 +228,7 @@ public class AssetInput {
 
     /** 最终 ECL = eclValue + overlayAmount */
     private double eclFinal;
+
+    /** 选中规则 ID */
+    private Long selectedOverlayId;
 }
