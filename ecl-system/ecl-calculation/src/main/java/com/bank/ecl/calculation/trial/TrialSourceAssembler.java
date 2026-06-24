@@ -156,6 +156,7 @@ public class TrialSourceAssembler {
         asset.setIndustryCode(loan.getIndustryCn());
         asset.setCollateralType(loan.getGuaranteeType());
         asset.setIsNpl(loan.getIsNpl());
+        asset.setFiveCategory(loan.getLoanClassifCd());
         asset.setNormalConsecutiveDays(loan.getNormalConsecutiveDays());
         asset.setOtherRiskInfo(loan.getOtherRiskInfo());
         asset.setBusinessType(loan.getBusinessType());
