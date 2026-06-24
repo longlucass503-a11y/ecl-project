@@ -157,7 +157,7 @@ public class TrialCalculationService {
         return ctx;
     }
 
-    private AssetResult buildAssetResult(AssetInput a, String schemeId) {
+    AssetResult buildAssetResult(AssetInput a, String schemeId) {
         AssetResult r = new AssetResult();
         r.setAssetId(a.getAssetId());
         r.setGroupId(a.getGroupId());
@@ -236,7 +236,18 @@ public class TrialCalculationService {
 
         // Step 3: PD
         TrialStepVO s3 = step("pd", "③ PD 取值", "PD_12M = " + formatPercent(a.getPd12m()));
-        if (a.getPdDetails() != null) {
+        if (a.getPdScenarioResults() != null && !a.getPdScenarioResults().isEmpty()) {
+            List<TrialScenarioRowVO> rows = new ArrayList<>();
+            for (var p : a.getPdScenarioResults()) {
+                rows.add(new TrialScenarioRowVO(
+                        p.getScenarioName() + " (" + p.getScenarioType() + ")",
+                        formatPercent(p.getWeight() != null ? p.getWeight().doubleValue() : 0),
+                        formatPercent(p.getPdValue()),
+                        formatPercent(p.getPdValue()),
+                        "BASELINE".equals(p.getScenarioType())));
+            }
+            s3.setScenarioRows(rows);
+        } else if (a.getPdDetails() != null) {
             List<TrialScenarioRowVO> rows = new ArrayList<>();
             for (var d : a.getPdDetails()) {
                 rows.add(new TrialScenarioRowVO(
@@ -256,11 +267,21 @@ public class TrialCalculationService {
                 metric("表内 EAD", formatMoney(a.getOnBsEad())),
                 metric("表外 EAD", formatMoney(a.getOffBsEad())),
                 metric("总 EAD", formatMoney(a.getTotalEad()))));
+        if (a.getEadBreakdown() != null) s4.setNote(a.getEadBreakdown());
         steps.add(s4);
 
         // Step 5: LGD
         TrialStepVO s5 = step("lgd", "⑤ LGD 取值", "LGD = " + formatPercent(a.getLgdValue()));
-        if (a.getLgdException() != null) s5.setNote("警告：使用方案默认 LGD");
+        s5.setMetrics(List.of(
+                metric("押品池", nvl(a.getCollateralPoolId())),
+                metric("LGD", formatPercent(a.getLgdValue()))));
+        StringBuilder lgdNote = new StringBuilder();
+        if (a.getLgdException() != null) lgdNote.append("警告：使用方案默认 LGD");
+        if (a.getLgdDetails() != null) {
+            if (lgdNote.length() > 0) lgdNote.append(" | ");
+            lgdNote.append(a.getLgdDetails());
+        }
+        if (lgdNote.length() > 0) s5.setNote(lgdNote.toString());
         steps.add(s5);
 
         // Step 6: ECL
@@ -270,6 +291,18 @@ public class TrialCalculationService {
                 metric("LGD", formatPercent(a.getLgdValue())),
                 metric("EAD", formatMoney(a.getTotalEad())),
                 metric("ECL 加权", formatMoney(a.getEclValue()))));
+        if (a.getEclScenarioResults() != null && !a.getEclScenarioResults().isEmpty()) {
+            List<TrialScenarioRowVO> rows = new ArrayList<>();
+            for (var e : a.getEclScenarioResults()) {
+                rows.add(new TrialScenarioRowVO(
+                        e.getScenarioCode() != null ? e.getScenarioCode() : "DEFAULT",
+                        formatPercent(e.getWeight() != null ? e.getWeight().doubleValue() : 0),
+                        formatMoney(e.getScenarioEcl()),
+                        formatMoney(e.getWeightedEcl()),
+                        false));
+            }
+            s6.setScenarioRows(rows);
+        }
         steps.add(s6);
 
         // Step 7: Overlay
