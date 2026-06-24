@@ -25,10 +25,8 @@ public class RiskGroupCreateReq {
     public static class RiskGroupDetailReq {
         private Integer priority;
         private String businessLine;
-        private String customerType;
         private String productType;
         private String industryCode;
-        private String regionCode;
         private String collateralType;
     }
 }

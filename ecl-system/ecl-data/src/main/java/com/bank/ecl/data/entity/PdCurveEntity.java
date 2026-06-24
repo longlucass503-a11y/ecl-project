@@ -20,6 +20,10 @@ public class PdCurveEntity {
 
     private Long scenarioId;
 
+    private String ratingSystem;
+
+    private String ratingAgency;
+
     private String ratingCode;
 
     private BigDecimal pdValue;

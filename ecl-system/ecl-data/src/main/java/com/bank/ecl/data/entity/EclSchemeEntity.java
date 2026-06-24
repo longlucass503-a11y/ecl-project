@@ -35,6 +35,8 @@ public class EclSchemeEntity {
 
     private BigDecimal defaultLgd;
 
+    private BigDecimal lgdFloor;
+
     private String createdBy;
 
     private LocalDateTime createdAt;

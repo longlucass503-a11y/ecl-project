@@ -16,6 +16,10 @@ public class CrrRatingDropRuleEntity {
 
     private String groupId;
 
+    private String ratingSystem;
+
+    private String ratingAgency;
+
     private String currentRating;
 
     private Integer dropThreshold;

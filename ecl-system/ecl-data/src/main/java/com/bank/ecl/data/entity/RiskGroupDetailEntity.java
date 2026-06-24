@@ -20,13 +20,9 @@ public class RiskGroupDetailEntity {
 
     private String businessLine;
 
-    private String customerType;
-
     private String productType;
 
     private String industryCode;
-
-    private String regionCode;
 
     private String collateralType;
 }

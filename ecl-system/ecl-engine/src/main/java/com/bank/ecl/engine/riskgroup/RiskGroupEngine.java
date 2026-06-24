@@ -22,7 +22,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 6.1 风险分组引擎 —— 根据借据的 6 维属性将每笔借据匹配到对应的风险分组。
+ * 6.1 风险分组引擎 —— 根据借据的 4 维属性将每笔借据匹配到对应的风险分组。
  *
  * <p>规则一次性加载到内存，按 priority ASC 排序后逐借据在内存中匹配。
  * 匹配失败以 GRP_DEFAULT 兜底，不抛异常。
@@ -120,16 +120,14 @@ public class RiskGroupEngine implements EclEngine {
     // ======================== 匹配逻辑 ========================
 
     /**
-     * 逐条规则匹配：6 维 AND，NULL 或空字符串 = 通配。
+     * 逐条规则匹配：4 维 AND，NULL 或空字符串 = 通配。
      * 规则按 priority ASC 已排序，命中第一条即返回。
      */
     private String matchGroup(AssetInput asset, List<RiskGroupDetailEntity> rules) {
         for (RiskGroupDetailEntity rule : rules) {
             if (matchDimension(asset.getBusinessLine(), rule.getBusinessLine())
-                    && matchDimension(asset.getCustomerType(), rule.getCustomerType())
                     && matchDimension(asset.getProductType(), rule.getProductType())
                     && matchDimension(asset.getIndustryCode(), rule.getIndustryCode())
-                    && matchDimension(asset.getRegionCode(), rule.getRegionCode())
                     && matchDimension(asset.getCollateralType(), rule.getCollateralType())) {
                 return rule.getGroupId();
             }

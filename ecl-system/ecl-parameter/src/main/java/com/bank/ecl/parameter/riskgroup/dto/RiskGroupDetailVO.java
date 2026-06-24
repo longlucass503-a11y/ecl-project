@@ -7,9 +7,7 @@ public class RiskGroupDetailVO {
     private Long detailId;
     private Integer priority;
     private String businessLine;
-    private String customerType;
     private String productType;
     private String industryCode;
-    private String regionCode;
     private String collateralType;
 }

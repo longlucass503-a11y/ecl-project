@@ -50,13 +50,12 @@ public class RiskGroupServiceImpl implements RiskGroupService {
         if (details == null || details.isEmpty()) {
             return;
         }
-        // 校验 6 维字段不全为空
+        // 校验 4 维字段不全为空
         for (int i = 0; i < details.size(); i++) {
             RiskGroupDetailReq d = details.get(i);
-            if (d.getBusinessLine() == null && d.getCustomerType() == null
-                    && d.getProductType() == null && d.getIndustryCode() == null
-                    && d.getRegionCode() == null && d.getCollateralType() == null) {
-                throw new EclException(ErrorCode.ECL_006, "明细第 " + (i + 1) + " 行：6 维字段不可全为空，至少填写一个维度");
+            if (d.getBusinessLine() == null && d.getProductType() == null
+                    && d.getIndustryCode() == null && d.getCollateralType() == null) {
+                throw new EclException(ErrorCode.ECL_006, "明细第 " + (i + 1) + " 行：4 维字段不可全为空，至少填写一个维度");
             }
         }
         // 校验 priority 唯一性（per scheme+group 在创建/更新时由调用方传入的 details 内校验）
@@ -275,10 +274,8 @@ public class RiskGroupServiceImpl implements RiskGroupService {
         vo.setDetailId(entity.getDetailId());
         vo.setPriority(entity.getPriority());
         vo.setBusinessLine(entity.getBusinessLine());
-        vo.setCustomerType(entity.getCustomerType());
         vo.setProductType(entity.getProductType());
         vo.setIndustryCode(entity.getIndustryCode());
-        vo.setRegionCode(entity.getRegionCode());
         vo.setCollateralType(entity.getCollateralType());
         return vo;
     }
@@ -289,10 +286,8 @@ public class RiskGroupServiceImpl implements RiskGroupService {
         entity.setGroupId(groupId);
         entity.setPriority(req.getPriority());
         entity.setBusinessLine(req.getBusinessLine());
-        entity.setCustomerType(req.getCustomerType());
         entity.setProductType(req.getProductType());
         entity.setIndustryCode(req.getIndustryCode());
-        entity.setRegionCode(req.getRegionCode());
         entity.setCollateralType(req.getCollateralType());
         return entity;
     }

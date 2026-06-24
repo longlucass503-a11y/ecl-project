@@ -65,13 +65,11 @@ class RiskGroupEngineTest {
     }
 
     private RiskGroupDetailEntity detail(String groupId, int priority,
-                                         String businessLine, String customerType,
-                                         String productType) {
+                                         String businessLine, String productType) {
         RiskGroupDetailEntity d = new RiskGroupDetailEntity();
         d.setGroupId(groupId);
         d.setPriority(priority);
         d.setBusinessLine(businessLine);
-        d.setCustomerType(customerType);
         d.setProductType(productType);
         return d;
     }
@@ -106,7 +104,7 @@ class RiskGroupEngineTest {
     void shouldMatchExactRule() {
         // given
         String schemeId = "SCH_001";
-        RiskGroupDetailEntity rule = detail("GRP_001", 1, "非零售", "对公", "公司贷款");
+        RiskGroupDetailEntity rule = detail("GRP_001", 1, "非零售", "公司贷款");
         when(detailMapper.selectList(any())).thenReturn(List.of(rule));
         when(groupMapper.selectList(any())).thenReturn(List.of(group("GRP_001", "对公业务")));
 
@@ -130,7 +128,7 @@ class RiskGroupEngineTest {
         // given
         String schemeId = "SCH_001";
         // 规则中 productType=NULL → 通配
-        RiskGroupDetailEntity rule = detail("GRP_001", 1, "非零售", "对公", null);
+        RiskGroupDetailEntity rule = detail("GRP_001", 1, "非零售", null);
         when(detailMapper.selectList(any())).thenReturn(List.of(rule));
         when(groupMapper.selectList(any())).thenReturn(List.of(group("GRP_001", "对公业务")));
 
@@ -149,8 +147,8 @@ class RiskGroupEngineTest {
     void shouldMatchFirstRuleByPriority() {
         // given
         String schemeId = "SCH_001";
-        RiskGroupDetailEntity rule1 = detail("GRP_001", 1, "非零售", "对公", null);
-        RiskGroupDetailEntity rule2 = detail("GRP_002", 2, "非零售", null, null);
+        RiskGroupDetailEntity rule1 = detail("GRP_001", 1, "非零售", null);
+        RiskGroupDetailEntity rule2 = detail("GRP_002", 2, "非零售", null);
         when(detailMapper.selectList(any())).thenReturn(List.of(rule1, rule2));
         when(groupMapper.selectList(any())).thenReturn(List.of(
                 group("GRP_001", "对公业务"),
@@ -172,7 +170,7 @@ class RiskGroupEngineTest {
     void shouldUseDefaultGroupWhenNoRuleMatches() {
         // given
         String schemeId = "SCH_001";
-        RiskGroupDetailEntity rule = detail("GRP_001", 1, "零售", "个人", "个消费贷");
+        RiskGroupDetailEntity rule = detail("GRP_001", 1, "零售", "个消费贷");
         when(detailMapper.selectList(any())).thenReturn(List.of(rule));
         when(groupMapper.selectList(any())).thenReturn(List.of(group("GRP_001", "个人消费贷款")));
 
@@ -192,7 +190,7 @@ class RiskGroupEngineTest {
     void shouldHandleMultipleAssetsWithMixedMatches() {
         // given
         String schemeId = "SCH_001";
-        RiskGroupDetailEntity rule = detail("GRP_001", 1, "非零售", "对公", "公司贷款");
+        RiskGroupDetailEntity rule = detail("GRP_001", 1, "非零售", "公司贷款");
         when(detailMapper.selectList(any())).thenReturn(List.of(rule));
         when(groupMapper.selectList(any())).thenReturn(List.of(group("GRP_001", "对公业务")));
 
