@@ -18,12 +18,24 @@ export interface EclJobDetailVO {
   schemeId: string;
   calcDate: string;
   groupId?: string;
+  groupException?: string;
   stageResult?: string;
+  triggerType?: string;
+  stageException?: string;
+  pdDetails?: string;
+  pdException?: string;
   eadTotal?: number;
+  eadException?: string;
+  eadBreakdown?: string;
   lgdValue?: number;
+  lgdException?: string;
+  lgdDetails?: string;
   eclWeighted?: number;
+  eclDetails?: string;
+  eclException?: string;
   eclOverlayTotal?: number;
   eclFinal?: number;
+  selectedOverlayId?: number;
   calcStatus?: string;
   errorSummary?: string;
 }

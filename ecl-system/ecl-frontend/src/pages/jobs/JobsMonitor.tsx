@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Drawer, Empty, Space, Table, Tag, message, Collapse, Descriptions } from 'antd';
+import { Button, Drawer, Empty, Table, Tag, message, Collapse } from 'antd';
 import { ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import { PageHeader, Panel } from '../../components';
 import { jobsApi, type EclJobVO, type EclJobDetailVO } from '../../api/jobs';
@@ -128,6 +128,36 @@ const JobsMonitor: React.FC = () => {
   );
 };
 
+/** ── Helpers ── */
+function safeJson<T = unknown>(json?: string | null): T | null {
+  if (!json || json === '{}') return null;
+  try { return JSON.parse(json); } catch { return null; }
+}
+
+/** Show a small metric label:value pair */
+const Metric: React.FC<{ label: string; value: React.ReactNode; ok?: boolean }> = ({ label, value, ok }) => (
+  <div style={{ fontSize: 12, padding: '2px 0' }}>
+    <span style={{ color: 'var(--color-text-secondary)' }}>{label}：</span>
+    <span style={{ color: ok === false ? 'var(--color-error)' : ok === true ? 'var(--color-success)' : 'var(--color-text)', fontWeight: 500 }}>{value ?? '-'}</span>
+  </div>
+);
+
+/** Render JSON array of scenario results as mini table */
+function ScenarioTable({ json, columns }: { json?: string | null; columns: string[] }) {
+  const rows = safeJson<Record<string, unknown>[]>(json);
+  if (!rows || rows.length === 0) return <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>—</span>;
+  return (
+    <table style={{ fontSize: 11, borderCollapse: 'collapse', width: '100%', marginTop: 4 }}>
+      <thead><tr>{columns.map((c) => <th key={c} style={{ borderBottom: '1px solid var(--color-border)', padding: '2px 6px', textAlign: 'left' }}>{c}</th>)}</tr></thead>
+      <tbody>
+        {rows.map((row, i) => (
+          <tr key={i}>{columns.map((c) => <td key={c} style={{ padding: '2px 6px' }}>{String(row[c] ?? '-')}</td>)}</tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 /** ── Job Detail View ── */
 const JobDetailView: React.FC<{ job: EclJobVO }> = ({ job }) => {
   const payload = parseRequestPayload(job.requestPayload);
@@ -153,61 +183,88 @@ const JobDetailView: React.FC<{ job: EclJobVO }> = ({ job }) => {
         )}
       </Panel>
 
-      {/* ── 2. Output ── */}
-      <Panel title="📊 输出结果 · 计算明细">
+      {/* ── 2. Engine Details — per asset ── */}
+      <Panel title="📊 引擎计算明细">
         {job.details && job.details.length > 0 ? (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="ecl-table" style={{ fontSize: 12 }}>
-              <thead>
-                <tr>
-                  <th>借据 ID</th>
-                  <th>分组</th>
-                  <th>阶段</th>
-                  <th>EAD</th>
-                  <th>LGD</th>
-                  <th>ECL 加权</th>
-                  <th>叠加</th>
-                  <th>ECL 最终</th>
-                  <th>状态</th>
-                  <th>异常摘要</th>
-                </tr>
-              </thead>
-              <tbody>
-                {job.details.map((d: EclJobDetailVO) => {
-                  const errs = parseError(d.errorSummary);
-                  return (
-                    <tr key={d.detailId}>
-                      <td><span className="ecl-mono">{d.assetId}</span></td>
-                      <td>{d.groupId || '-'}</td>
-                      <td>{d.stageResult || '-'}</td>
-                      <td>{d.eadTotal != null ? d.eadTotal.toFixed(2) : '-'}</td>
-                      <td>{d.lgdValue != null ? (d.lgdValue * 100).toFixed(2) + '%' : '-'}</td>
-                      <td>{d.eclWeighted != null ? d.eclWeighted.toFixed(2) : '-'}</td>
-                      <td>{d.eclOverlayTotal != null ? d.eclOverlayTotal.toFixed(2) : '-'}</td>
-                      <td><strong>{d.eclFinal != null ? d.eclFinal.toFixed(2) : '-'}</strong></td>
-                      <td><Tag color={d.calcStatus === 'SUCCESS' ? 'green' : 'orange'}>{d.calcStatus || '-'}</Tag></td>
-                      <td style={{ maxWidth: 260, whiteSpace: 'pre-wrap', fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                        {errs ? Object.entries(errs).map(([k, v]) => `${k}: ${v}`).join('\n') : '-'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <Collapse
+            size="small"
+            items={job.details.map((d, idx) => ({
+              key: String(idx),
+              label: (
+                <span>
+                  <span className="ecl-mono" style={{ fontWeight: 600 }}>{d.assetId}</span>
+                  <Tag color={d.calcStatus === 'SUCCESS' ? 'green' : 'orange'} style={{ marginLeft: 8 }}>{d.calcStatus}</Tag>
+                  <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--color-text-secondary)' }}>ECL 最终: {d.eclFinal != null ? d.eclFinal.toFixed(2) : '-'}</span>
+                </span>
+              ),
+              children: (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
+
+                  {/* ── 6.1 风险分组 ── */}
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, color: 'var(--color-primary)' }}>① 风险分组</div>
+                    <Metric label="匹配分组" value={d.groupId || 'GRP_DEFAULT'} ok={!d.groupException} />
+                    {d.groupException && <Metric label="异常" value={d.groupException} ok={false} />}
+                  </div>
+
+                  {/* ── 6.2 阶段划分 ── */}
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, color: 'var(--color-primary)' }}>② 阶段判定</div>
+                    <Metric label="判定阶段" value={d.stageResult} ok={!d.stageException} />
+                    <Metric label="触发规则" value={d.triggerType || '—'} />
+                    {d.stageException && <Metric label="异常" value={d.stageException} ok={false} />}
+                  </div>
+
+                  {/* ── 6.3 PD ── */}
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, color: 'var(--color-primary)' }}>③ PD 取值</div>
+                    {d.pdException && <Metric label="异常" value={d.pdException} ok={false} />}
+                    <ScenarioTable json={d.pdDetails} columns={['scenarioType', 'scenarioName', 'weight', 'pdValue']} />
+                  </div>
+
+                  {/* ── 6.4 EAD ── */}
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, color: 'var(--color-primary)' }}>④ EAD 计算</div>
+                    <Metric label="EAD 总额" value={d.eadTotal != null ? d.eadTotal.toFixed(2) : '-'} />
+                    {d.eadBreakdown && <Metric label="明细" value={<pre style={{ margin: 0, fontSize: 11, whiteSpace: 'pre-wrap' }}>{safeJson(d.eadBreakdown) ? JSON.stringify(safeJson(d.eadBreakdown), null, 1) : d.eadBreakdown}</pre>} />}
+                    {d.eadException && <Metric label="异常" value={d.eadException} ok={false} />}
+                  </div>
+
+                  {/* ── 6.5 LGD ── */}
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, color: 'var(--color-primary)' }}>⑤ LGD 计算</div>
+                    <Metric label="LGD" value={d.lgdValue != null ? (d.lgdValue * 100).toFixed(2) + '%' : '-'} />
+                    {d.lgdDetails && <Metric label="明细" value={<pre style={{ margin: 0, fontSize: 11, whiteSpace: 'pre-wrap' }}>{safeJson(d.lgdDetails) ? JSON.stringify(safeJson(d.lgdDetails), null, 1) : d.lgdDetails}</pre>} />}
+                    {d.lgdException && <Metric label="异常" value={d.lgdException} ok={false} />}
+                  </div>
+
+                  {/* ── 6.6~6.7 ECL + Overlay ── */}
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, color: 'var(--color-primary)' }}>⑥⑦ ECL · Overlay</div>
+                    <Metric label="ECL 加权" value={d.eclWeighted != null ? d.eclWeighted.toFixed(2) : '-'} />
+                    <Metric label="叠加调整" value={d.eclOverlayTotal != null ? d.eclOverlayTotal.toFixed(2) : '-'} />
+                    <Metric label="ECL 最终" value={<strong>{d.eclFinal != null ? d.eclFinal.toFixed(2) : '-'}</strong>} />
+                    {d.selectedOverlayId && <Metric label="命中叠加规则" value={d.selectedOverlayId} />}
+                    {d.eclDetails && <ScenarioTable json={d.eclDetails} columns={['scenarioType', 'weight', 'scenarioEcl', 'weightedEcl']} />}
+                  </div>
+
+                  {/* ── Errors ── */}
+                  {d.errorSummary && d.errorSummary !== '{}' && (
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, color: 'var(--color-error)' }}>⚠ 异常摘要</div>
+                      <pre style={{ fontSize: 11, whiteSpace: 'pre-wrap', margin: 0, color: 'var(--color-error)' }}>
+                        {JSON.stringify(JSON.parse(d.errorSummary), null, 1)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              ),
+            }))}
+          />
         ) : (
           <Empty description="暂无计算明细" />
         )}
       </Panel>
-
-      {/* ── 3. Error Summary ── */}
-      {job.errorSummary && job.errorSummary !== '{}' && (
-        <Panel title="⚠️ 错误摘要">
-          <pre style={{ fontSize: 12, whiteSpace: 'pre-wrap', margin: 0 }}>
-            {JSON.stringify(JSON.parse(job.errorSummary), null, 2)}
-          </pre>
-        </Panel>
-      )}
     </div>
   );
 };
