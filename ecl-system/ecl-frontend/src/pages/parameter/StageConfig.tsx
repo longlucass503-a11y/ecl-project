@@ -49,20 +49,45 @@ const RATING_AGENCY_OPTIONS = [
   { label: '惠誉 (FITCH)', value: 'FITCH' },
 ];
 
-const INTERNAL_RATING_OPTIONS = [
-  'CRR1', 'CRR2', 'CRR3', 'CRR4', 'CRR5',
-  'CRR6', 'CRR7', 'CRR8', 'CRR9', 'CRR10',
-  'CRR11', 'CRR12', 'CRR13', 'CRR14',
-];
+const RATING_SCALES: Record<string, string[]> = {
+  INTERNAL_CRR: [
+    'CRR1', 'CRR2', 'CRR3', 'CRR4', 'CRR5',
+    'CRR6', 'CRR7', 'CRR8', 'CRR9', 'CRR10',
+    'CRR11', 'CRR12', 'CRR13', 'CRR14',
+  ],
+  MOODY: [
+    'Aaa', 'Aa1', 'Aa2', 'Aa3',
+    'A1', 'A2', 'A3',
+    'Baa1', 'Baa2', 'Baa3',
+    'Ba1', 'Ba2', 'Ba3',
+    'B1', 'B2', 'B3',
+    'Caa1', 'Caa2', 'Caa3',
+    'Ca', 'C',
+  ],
+  'S&P': [
+    'AAA', 'AA+', 'AA', 'AA-',
+    'A+', 'A', 'A-',
+    'BBB+', 'BBB', 'BBB-',
+    'BB+', 'BB', 'BB-',
+    'B+', 'B', 'B-',
+    'CCC+', 'CCC', 'CCC-',
+    'CC', 'C', 'D',
+  ],
+  FITCH: [
+    'AAA', 'AA+', 'AA', 'AA-',
+    'A+', 'A', 'A-',
+    'BBB+', 'BBB', 'BBB-',
+    'BB+', 'BB', 'BB-',
+    'B+', 'B', 'B-',
+    'CCC', 'CC', 'C',
+    'RD', 'D',
+  ],
+};
 
-const EXTERNAL_RATING_OPTIONS = [
-  'AAA', 'AA+', 'AA', 'AA-',
-  'A+', 'A', 'A-',
-  'BBB+', 'BBB', 'BBB-',
-  'BB+', 'BB', 'BB-',
-  'B+', 'B', 'B-',
-  'CCC', 'CC', 'C', 'D',
-];
+function getRatingOptions(agency: string | undefined): { label: string; value: string }[] {
+  const list = RATING_SCALES[agency || 'INTERNAL_CRR'] || RATING_SCALES.INTERNAL_CRR;
+  return list.map((r) => ({ label: r, value: r }));
+}
 
 /** Parse jsonCondition string → ConditionJSON, or return empty default */
 function parseConditions(jsonStr?: string): ConditionItem[] {
@@ -184,6 +209,13 @@ const StageConfig: React.FC = () => {
 
   // ─── CRR batch ───
   const [crrBatchVal, setCrrBatchVal] = useState<number>(3);
+
+  // Rating rule edit/add modal state
+  const [ratingModalOpen, setRatingModalOpen] = useState(false);
+  const [ratingModalRule, setRatingModalRule] = useState<RatingDowngradeRuleVO | null>(null); // null = add mode
+  const [ratingFormAgency, setRatingFormAgency] = useState('INTERNAL_CRR');
+  const [ratingFormCode, setRatingFormCode] = useState('');
+  const [ratingFormThreshold, setRatingFormThreshold] = useState(3);
 
   // ─── Load schemes ───
   useEffect(() => {
@@ -350,116 +382,43 @@ const StageConfig: React.FC = () => {
   // ─── CRR rating rules ───
   const openRatingModal = (rule?: RatingDowngradeRuleVO) => {
     if (rule) {
-      Modal.info({
-        title: '编辑评级阈值',
-        content: (
-          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>评级机构/来源</div>
-              <Select
-                style={{ width: '100%' }}
-                defaultValue={rule.ratingAgency || 'INTERNAL_CRR'}
-                options={RATING_AGENCY_OPTIONS}
-                onChange={(val) => {
-                  stageApi.updateRatingRule(rule.ruleId!, {
-                    ...rule,
-                    ratingAgency: val,
-                  }).then(() => { message.success('已更新'); loadRules(); });
-                }}
-              />
-            </div>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>评级代码</div>
-              <Select
-                style={{ width: '100%' }}
-                defaultValue={rule.currentRating}
-                placeholder="选择评级"
-                options={(rule.ratingAgency && rule.ratingAgency !== 'INTERNAL_CRR'
-                  ? EXTERNAL_RATING_OPTIONS
-                  : INTERNAL_RATING_OPTIONS
-                ).map((r) => ({ label: r, value: r }))}
-                onChange={(val) => {
-                  stageApi.updateRatingRule(rule.ruleId!, {
-                    ...rule,
-                    currentRating: val,
-                  }).then(() => { message.success('已更新'); loadRules(); });
-                }}
-              />
-            </div>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>下降阈值</div>
-              <InputNumber
-                defaultValue={rule.downgradeThreshold}
-                min={0}
-                placeholder="下降级数"
-                onChange={(v) => {
-                  if (v != null) {
-                    stageApi.updateRatingRule(rule.ruleId!, {
-                      ...rule,
-                      downgradeThreshold: v,
-                    }).then(() => {
-                      message.success('已更新');
-                      loadRules();
-                    });
-                  }
-                }}
-              />
-              <span style={{ marginLeft: 8, color: 'var(--color-text-secondary)', fontSize: 13 }}>级</span>
-            </div>
-          </div>
-        ),
-      });
+      setRatingModalRule(rule);
+      setRatingFormAgency(rule.ratingAgency || 'INTERNAL_CRR');
+      setRatingFormCode(rule.currentRating || '');
+      setRatingFormThreshold(rule.downgradeThreshold || 0);
     } else {
-      // Add new rating rule
-      let rating = '';
-      let threshold = 3;
-      let ratingAgency = 'INTERNAL_CRR';
-      const allRatings = [...INTERNAL_RATING_OPTIONS, ...EXTERNAL_RATING_OPTIONS];
-      Modal.confirm({
-        title: '新增评级下降规则',
-        content: (
-          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <select
-              style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #d9d9d9', fontSize: 14 }}
-              onChange={(e) => { ratingAgency = e.target.value; }}
-            >
-              {RATING_AGENCY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            <select
-              style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #d9d9d9', fontSize: 14 }}
-              onChange={(e) => { rating = e.target.value; }}
-            >
-              <option value="">请选择评级</option>
-              <optgroup label="内部评级">
-                {INTERNAL_RATING_OPTIONS.map((r) => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </optgroup>
-              <optgroup label="外部评级">
-                {EXTERNAL_RATING_OPTIONS.map((r) => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </optgroup>
-            </select>
-            <InputNumber min={0} defaultValue={3} placeholder="下降阈值（级数）" onChange={(v) => (threshold = v || 3)} />
-          </div>
-        ),
-        onOk: async () => {
-          if (!rating) { message.warning('请选择评级代码'); return; }
-          await stageApi.createRatingRule({
-            schemeId: selectedSchemeId,
-            groupId: selectedGroupId,
-            ratingAgency: ratingAgency || undefined,
-            currentRating: rating,
-            downgradeThreshold: threshold,
-          });
-          message.success('已添加');
-          loadRules();
-        },
-      });
+      setRatingModalRule(null);
+      setRatingFormAgency('INTERNAL_CRR');
+      setRatingFormCode('');
+      setRatingFormThreshold(3);
     }
+    setRatingModalOpen(true);
+  };
+
+  const saveRatingRule = async () => {
+    if (!ratingFormCode) { message.warning('请选择评级代码'); return; }
+    if (ratingModalRule) {
+      // Edit existing
+      await stageApi.updateRatingRule(ratingModalRule.ruleId!, {
+        ...ratingModalRule,
+        ratingAgency: ratingFormAgency,
+        currentRating: ratingFormCode,
+        downgradeThreshold: ratingFormThreshold,
+      });
+      message.success('已更新');
+    } else {
+      // Add new
+      await stageApi.createRatingRule({
+        schemeId: selectedSchemeId,
+        groupId: selectedGroupId,
+        ratingAgency: ratingFormAgency,
+        currentRating: ratingFormCode,
+        downgradeThreshold: ratingFormThreshold,
+      });
+      message.success('已添加');
+    }
+    setRatingModalOpen(false);
+    loadRules();
   };
 
   const handleDeleteRatingRule = (rule: RatingDowngradeRuleVO) => {
@@ -1623,6 +1582,52 @@ const StageConfig: React.FC = () => {
           )}
           <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
             复制目标：{groups.find((g) => g.groupId === selectedGroupId)?.groupName || selectedGroupId}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Rating rule edit/add modal */}
+      <Modal
+        open={ratingModalOpen}
+        title={ratingModalRule ? '编辑评级阈值' : '新增评级下降规则'}
+        onCancel={() => setRatingModalOpen(false)}
+        onOk={saveRatingRule}
+        okText="保存"
+        cancelText="取消"
+        destroyOnClose
+      >
+        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>评级机构/来源</div>
+            <Select
+              style={{ width: '100%' }}
+              value={ratingFormAgency}
+              options={RATING_AGENCY_OPTIONS}
+              onChange={(val) => {
+                setRatingFormAgency(val);
+                setRatingFormCode(''); // reset rating when agency changes
+              }}
+            />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>评级代码</div>
+            <Select
+              style={{ width: '100%' }}
+              value={ratingFormCode || undefined}
+              placeholder="选择评级"
+              options={getRatingOptions(ratingFormAgency)}
+              onChange={(val) => setRatingFormCode(val)}
+            />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>下降阈值</div>
+            <InputNumber
+              value={ratingFormThreshold}
+              min={0}
+              placeholder="下降级数"
+              onChange={(v) => setRatingFormThreshold(v || 0)}
+            />
+            <span style={{ marginLeft: 8, color: 'var(--color-text-secondary)', fontSize: 13 }}>级</span>
           </div>
         </div>
       </Modal>
