@@ -174,4 +174,29 @@ class EadEngineTest {
         engine.execute(ctx("SCH_001", 0.2, a));
         assertEquals(100.0, a.getOffBsEad(), 0.01); // 500 × 0.2 (default)
     }
+
+    @Test
+    void shouldCalculateOffBalanceBusinessOnlyFromUnusedFacility() {
+        AssetInput asset = asset("LN_001", "FAC_001", 1000);
+        asset.setBusinessType("OFF_BS");
+        asset.setOutstandingBalance(BigDecimal.valueOf(500));
+        asset.setAccruedInterest(BigDecimal.valueOf(10));
+
+        engine.execute(ctxWithFacility(asset));
+
+        assertEquals(0.0, asset.getOnBsEad(), 0.01);
+        assertEquals(100.0, asset.getOffBsEad(), 0.01);
+        assertEquals(100.0, asset.getTotalEad(), 0.01);
+    }
+
+    @Test
+    void shouldUseDefaultCcfWhenProductOrCommitmentTypeMissing() {
+        CcfCurveEntity c = ccf("公司贷款", "承诺", 0.5);
+        when(ccfMapper.selectList(any())).thenReturn(List.of(c));
+        AssetInput a = asset(null, null, 0, 0, 1000);
+
+        engine.execute(ctx("SCH_001", 0.2, a));
+
+        assertEquals(200.0, a.getOffBsEad(), 0.01);
+    }
 }

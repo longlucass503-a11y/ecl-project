@@ -11,6 +11,8 @@ public class CrrDropRuleCreateReq {
     @NotBlank
     private String groupId;
 
+    private String ratingAgency;
+
     @NotBlank
     private String currentRating;
 

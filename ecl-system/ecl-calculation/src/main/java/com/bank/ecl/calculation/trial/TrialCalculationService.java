@@ -215,10 +215,8 @@ public class TrialCalculationService {
                         ? "命中分组 " + a.getGroupName() : "兜底分组 GRP_DEFAULT");
         s1.setMetrics(List.of(
                 metric("业务条线", nvl(a.getBusinessLine())),
-                metric("客户类型", nvl(a.getCustomerType())),
                 metric("产品类型", nvl(a.getProductType())),
                 metric("行业代码", nvl(a.getIndustryCode())),
-                metric("地区代码", nvl(a.getRegionCode())),
                 metric("担保类型", nvl(a.getCollateralType()))));
         if (a.getGroupException() != null) s1.setNote("异常：命中兜底分组");
         steps.add(s1);

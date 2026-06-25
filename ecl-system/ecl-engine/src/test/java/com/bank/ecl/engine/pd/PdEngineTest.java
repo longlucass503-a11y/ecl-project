@@ -42,15 +42,13 @@ class PdEngineTest {
         PdCurveEntity c = new PdCurveEntity();
         c.setGroupId(groupId); c.setRatingCode(ratingCode);
         c.setScenarioId(scenarioId); c.setPdValue(BigDecimal.valueOf(pd));
-        c.setRatingSystem("INTERNAL_CRR"); c.setRatingAgency("INTERNAL_CRR");
+        c.setRatingAgency("INTERNAL_CRR");
         return c;
     }
 
-    private PdCurveEntity curve(String groupId, String ratingSystem, String ratingAgency,
-                                String ratingCode, Long scenarioId, double pd) {
+    private PdCurveEntity curve(String groupId, String ratingAgency, String ratingCode, Long scenarioId, double pd) {
         PdCurveEntity c = new PdCurveEntity();
-        c.setGroupId(groupId); c.setRatingSystem(ratingSystem);
-        c.setRatingAgency(ratingAgency); c.setRatingCode(ratingCode);
+        c.setGroupId(groupId); c.setRatingAgency(ratingAgency); c.setRatingCode(ratingCode);
         c.setScenarioId(scenarioId); c.setPdValue(BigDecimal.valueOf(pd));
         return c;
     }
@@ -186,7 +184,7 @@ class PdEngineTest {
         asset.setExtRatingThisYear("A1");
         asset.setExtRatingCoThisYear("MOODY");
 
-        PdCurveEntity curve = curve("GRP_003", "INTERNATIONAL_EXTERNAL", "MOODY", "A1", 1L, 0.02);
+        PdCurveEntity curve = curve("GRP_003", "MOODY", "A1", 1L, 0.02);
         when(scenarioMapper.selectList(any())).thenReturn(List.of(scenario(1L, "BASE", "基准", 1.0)));
         when(curveMapper.selectList(any())).thenReturn(List.of(curve));
 
@@ -209,5 +207,42 @@ class PdEngineTest {
         engine.execute(ctx("SCH_001", asset));
 
         assertEquals("ECL_001", asset.getPdException());
+    }
+
+    @Test
+    void shouldBlockWhenMaturityDateIsNotAfterCalcDateForAnyStage() {
+        AssetInput asset = asset("GRP_001", "CRR5", Stage.STAGE_3);
+        asset.setMaturityDate(LocalDate.of(2026, 6, 21));
+        asset.setCalcDate(LocalDate.of(2026, 6, 21));
+
+        when(scenarioMapper.selectList(any())).thenReturn(List.of(scenario(1L, "BASELINE", "基准", 1.0)));
+        when(curveMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        engine.execute(ctx("SCH_001", asset));
+
+        assertEquals("ECL_001", asset.getPdException());
+        assertTrue(asset.getPdScenarioResults().isEmpty());
+    }
+
+    @Test
+    void shouldStoreStageAdjustedPdPerScenarioForStage2() {
+        PdScenarioEntity base = scenario(1L, "BASELINE", "基准", 0.6);
+        PdScenarioEntity pess = scenario(2L, "PESSIMISTIC", "悲观", 0.4);
+        PdCurveEntity baseCurve = curve("GRP_001", "CRR5", 1L, 0.05);
+        PdCurveEntity pessCurve = curve("GRP_001", "CRR5", 2L, 0.10);
+        when(scenarioMapper.selectList(any())).thenReturn(List.of(base, pess));
+        when(curveMapper.selectList(any())).thenReturn(List.of(baseCurve, pessCurve));
+
+        AssetInput asset = asset("GRP_001", "CRR5", Stage.STAGE_2);
+        asset.setCalcDate(LocalDate.of(2026, 6, 21));
+        asset.setMaturityDate(LocalDate.of(2028, 6, 21));
+
+        engine.execute(ctx("SCH_001", asset));
+
+        double expectedBaseLifetime = 1 - Math.pow(1 - 0.05, 2.0);
+        double expectedPessLifetime = 1 - Math.pow(1 - 0.10, 2.0);
+        assertEquals(expectedBaseLifetime, asset.getPdScenarioResults().get(0).getPdValue(), 0.0001);
+        assertEquals(expectedPessLifetime, asset.getPdScenarioResults().get(1).getPdValue(), 0.0001);
+        assertEquals(expectedBaseLifetime * 0.6 + expectedPessLifetime * 0.4, asset.getPdLifetime(), 0.0001);
     }
 }

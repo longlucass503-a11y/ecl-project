@@ -192,7 +192,7 @@ public class StageConditionEvaluator {
         return switch (type) {
             case "逾期天数" -> compareNumber(asset.getOverdueDays(), operator, value);
             case "五级分类" -> evaluateEditorIn(asset.getFiveCategory(), operator, condition.get("values"));
-            case "CRR 评级下降" -> evaluateCrrDrop(asset, crrDropMap);
+            case "CRR 评级下降" -> evaluateCrrDrop(asset, crrDropMap, value);
             case "违约标识" -> evaluateDefaultFlag(asset, value);
             case "逾期天数范围" -> evaluateRangeCondition(asset.getOverdueDays(), condition);
             case "舆情事件" -> evaluateTextEvidence(asset.getOtherRiskInfo(), value)
@@ -360,23 +360,33 @@ public class StageConditionEvaluator {
 
     private static boolean evaluateCrrDrop(AssetInput asset,
                                            Map<String, Integer> crrDropMap) {
+        return evaluateCrrDrop(asset, crrDropMap, null);
+    }
+
+    private static boolean evaluateCrrDrop(AssetInput asset,
+                                           Map<String, Integer> crrDropMap,
+                                           Object expectedValue) {
+        boolean expectDrop = expectedValue == null
+                || !Boolean.FALSE.equals(expectedValue)
+                || !"否".equals(expectedValue.toString());
+
         if (crrDropMap == null || crrDropMap.isEmpty()) {
-            return false;
+            return !expectDrop;
         }
 
-        if (evaluateRatingDropCandidate(asset.getGroupId(), "INTERNAL_CRR",
+        boolean hasDrop = evaluateRatingDropCandidate(asset.getGroupId(), "INTERNAL_CRR",
                 firstNonBlank(asset.getCrrFinal(), asset.getCrrIntThisYear(), asset.getCrrRating()),
-                asset.getCrrIntLastYear(), asset.getRatingDropLevels(), crrDropMap)) {
-            return true;
+                asset.getCrrIntLastYear(), asset.getRatingDropLevels(), crrDropMap);
+
+        if (!hasDrop) {
+            String externalAgency = firstNonBlank(asset.getExtRatingCoThisYear(), asset.getExtRatingCoLastYear());
+            if (sameExternalAgency(asset)) {
+                hasDrop = evaluateRatingDropCandidate(asset.getGroupId(),
+                        externalAgency, asset.getExtRatingThisYear(), asset.getExtRatingLastYear(), null, crrDropMap);
+            }
         }
 
-        String externalAgency = firstNonBlank(asset.getExtRatingCoThisYear(), asset.getExtRatingCoLastYear());
-        if (sameExternalAgency(asset) && evaluateRatingDropCandidate(asset.getGroupId(),
-                externalAgency, asset.getExtRatingThisYear(), asset.getExtRatingLastYear(), null, crrDropMap)) {
-            return true;
-        }
-
-        return false;
+        return expectDrop == hasDrop;
     }
 
     private static boolean evaluateRatingDropCandidate(String groupId,

@@ -42,57 +42,81 @@ export interface TrialLoanRowReq {
 
 // 授信额度表行
 export interface TrialFacilityRowReq {
-  id: string;
-  customerNo?: string;
-  customerName?: string;
-  facilityType?: string;
-  currencyCd?: string;
-  totalLimitCny?: number;
-  usedLimitCny?: number;
-  availableLimitCny?: number;
-  effectiveDt?: string;
-  expiryDt?: string;
+  facilityCd: string;
+  limitCurrencyCd?: string;
+  fxRateLimitToCny?: number;
+  limitAmtFcy?: number;
+  limitAmtCny?: number;
+  limitAvailAmtFcy?: number;
+  limitAvailAmtCny?: number;
+  undrawnAmtCny?: number;
+  commitWithdrawFlg?: string;
+  isRevolving?: string;
+  calcTypeCd?: string;
+  facilityStartDate?: string;
+  facilityMaturityDate?: string;
+  usedLimit?: number;
   collateralPoolId?: string;
-  riskGrade?: string;
+  cifNo?: string;
+  customerName?: string;
 }
 
 // 还款计划表行
 export interface TrialRepaymentRowReq {
-  id: string;
-  loanId?: string;
-  dueDt?: string;
+  loanReceiptNo?: string;
+  totalPeriods?: number;
+  periodNo?: number;
+  dueDate?: string;
   duePrincipal?: number;
   dueInterest?: number;
-  repaidPrincipal?: number;
-  repaidInterest?: number;
-  repaymentType?: string;
 }
 
 // 抵质押品表行
 export interface TrialCollateralRowReq {
-  id: string;
-  collateralPoolId?: string;
+  branchCode?: string;
+  cifNo?: string;
+  customerName?: string;
+  facilityUniqueCode?: string;
+  facilityNumber?: string;
+  guaranteeContractNo?: string;
   collateralType?: string;
-  collateralValueCny?: number;
-  coverageRatio?: number;
-  valuationDt?: string;
+  collateralCategory?: string;
+  categoryDesc?: string;
+  collateralCode?: string;
+  collateralPoolCode?: string;
+  collateralStatus?: string;
+  collateralDesc?: string;
+  collateralStartDate?: string;
+  collateralEndDate?: string;
+  collateralCurrency?: string;
+  collateralValue?: number;
+  reportCurrency?: string;
+  collateralValueFcy?: number;
+  appraisalCompany?: string;
+  appraisalEffectiveDate?: string;
+  appraisalExpiryDate?: string;
+  appraisalValue?: number;
+  guaranteeMethod?: string;
 }
 
 // 评级信息表行
 export interface TrialRatingRowReq {
-  id: string;
-  customerNo?: string;
-  ratingCode?: string;
-  ratingDate?: string;
+  cifNo?: string;
+  customerName?: string;
+  extRatingCoLastYear?: string;
+  extRatingLastYear?: string;
+  crrIntLastYear?: string;
+  extRatingCoThisYear?: string;
+  extRatingThisYear?: string;
+  crrIntThisYear?: string;
+  crrFinal?: string;
 }
 
 // 历史阶段表行
 export interface TrialHistoricalStageRowReq {
-  id: string;
-  loanId?: string;
-  stage?: string;
-  stageDate?: string;
-  reasonCode?: string;
+  assetId?: string;
+  calcDate?: string;
+  stageResult?: string;
 }
 
 export interface AssetInputReq {

@@ -12,17 +12,15 @@ import {
 import './TrialCenter.css';
 
 const today = dayjs();
-const BUSINESS_LINES = ['非零售', '零售'];
-const CUSTOMER_TYPES = ['对公', '非银金融', '同业', '债券', '小微', '个人'];
 const PRODUCT_TYPES = ['公司贷款', '银团贷款', '汽车贷款', '个经营贷', '个消费贷'];
 const COLLATERAL_TYPES = ['房产', '土地', '存单', '保证金', '信用', '保证'];
-const RATING_CODES = ['AAA', 'AA', 'A', 'BBB', 'BB', 'B', 'CCC', 'CC', 'C'];
+const RATING_CODES = ['CRR1', 'CRR2', 'CRR3', 'CRR4', 'CRR5', 'CRR6', 'CRR7', 'CRR8', 'CRR9', 'CRR10', 'Aaa', 'Aa1', 'A1', 'A2', 'A3', 'Baa3'];
 const GUARANTEE_TYPES = ['信用', '保证', '抵押', '质押', '保证金', '存单'];
-const FACILITY_TYPES = ['循环', '非循环', '一次性'];
 const STAGE_OPTIONS = ['STAGE_1', 'STAGE_2', 'STAGE_3'];
 const SEGMENT_OPTIONS = ['大型', '中型', '小型', '微型'];
 const INDUSTRY_OPTIONS = ['制造业', '金融业', '批发零售', '房地产', '建筑', '交通运输', '信息技术', '农林牧渔', '其他'];
-const REPAYMENT_TYPES = ['正常', '提前', '逾期', '展期'];
+const BUSINESS_TYPE_OPTIONS = ['ON_BS', 'OFF_BS'];
+const REVOLVING_OPTIONS = ['Y', 'N'];
 
 // ---------------------------------------------------------------------------
 // Helpers: default row factories (called during render / preset)
@@ -47,59 +45,68 @@ const makeDefaultLoan = (): TrialLoanRowReq => ({
   guaranteeType: '信用',
   normalConsecutiveDays: 180,
   otherRiskInfo: '',
-  businessType: '流动资金贷款',
+  businessType: 'ON_BS',
   overduePrincipal: 0,
   overdueInterest: 0,
 });
 
 const makeDefaultFacility = (): TrialFacilityRowReq => ({
-  id: `FAC_${String(Date.now()).slice(-6)}`,
-  customerNo: 'CUST_001',
+  facilityCd: `FAC_${String(Date.now()).slice(-6)}`,
+  cifNo: 'CUST_001',
   customerName: '试算企业',
-  facilityType: '循环',
-  currencyCd: 'CNY',
-  totalLimitCny: 8000000,
-  usedLimitCny: 5000000,
-  availableLimitCny: 3000000,
-  effectiveDt: today.format('YYYY-MM-DD'),
-  expiryDt: today.add(2, 'year').format('YYYY-MM-DD'),
+  limitCurrencyCd: 'CNY',
+  limitAmtCny: 8000000,
+  usedLimit: 5000000,
+  limitAvailAmtCny: 3000000,
+  undrawnAmtCny: 3000000,
+  isRevolving: 'Y',
+  facilityStartDate: today.format('YYYY-MM-DD'),
+  facilityMaturityDate: today.add(2, 'year').format('YYYY-MM-DD'),
   collateralPoolId: 'POOL_001',
-  riskGrade: 'AA',
 });
 
 const makeDefaultCollateral = (): TrialCollateralRowReq => ({
-  id: `COL_${String(Date.now()).slice(-6)}`,
-  collateralPoolId: 'POOL_001',
+  cifNo: 'CUST_001',
+  customerName: '试算企业',
+  facilityUniqueCode: 'FAC_001',
+  collateralCode: `COL_${String(Date.now()).slice(-6)}`,
+  collateralPoolCode: 'POOL_001',
+  collateralCategory: '房产',
   collateralType: '房产',
-  collateralValueCny: 10000000,
-  coverageRatio: 200,
-  valuationDt: today.format('YYYY-MM-DD'),
+  collateralStatus: '有效',
+  collateralCurrency: 'CNY',
+  collateralValue: 10000000,
+  reportCurrency: 'CNY',
+  appraisalEffectiveDate: today.format('YYYY-MM-DD'),
+  appraisalValue: 10000000,
+  guaranteeMethod: '抵押',
 });
 
 const makeDefaultRating = (): TrialRatingRowReq => ({
-  id: `RAT_${String(Date.now()).slice(-6)}`,
-  customerNo: 'CUST_001',
-  ratingCode: 'AAA',
-  ratingDate: today.format('YYYY-MM-DD'),
+  cifNo: 'CUST_001',
+  customerName: '试算企业',
+  crrIntLastYear: 'CRR4',
+  crrIntThisYear: 'CRR5',
+  crrFinal: 'CRR5',
+  extRatingCoLastYear: 'MOODY',
+  extRatingLastYear: 'A1',
+  extRatingCoThisYear: 'MOODY',
+  extRatingThisYear: 'Baa3',
 });
 
 const makeDefaultRepayment = (loanId: string): TrialRepaymentRowReq => ({
-  id: `REP_${String(Date.now()).slice(-6)}`,
-  loanId,
-  dueDt: today.add(1, 'year').format('YYYY-MM-DD'),
+  loanReceiptNo: loanId,
+  totalPeriods: 1,
+  periodNo: 1,
+  dueDate: today.add(1, 'year').format('YYYY-MM-DD'),
   duePrincipal: 1000000,
   dueInterest: 50000,
-  repaidPrincipal: 0,
-  repaidInterest: 0,
-  repaymentType: '正常',
 });
 
 const makeDefaultHistoricalStage = (loanId: string): TrialHistoricalStageRowReq => ({
-  id: `HST_${String(Date.now()).slice(-6)}`,
-  loanId,
-  stage: 'STAGE_1',
-  stageDate: today.format('YYYY-MM-DD'),
-  reasonCode: '新增',
+  assetId: loanId,
+  calcDate: today.format('YYYY-MM-DD'),
+  stageResult: 'STAGE_1',
 });
 
 // ---------------------------------------------------------------------------
@@ -198,43 +205,43 @@ const TrialCenter: React.FC = () => {
     switch (preset) {
       case 'corp_dual': {
         setLoans([
-          { ...makeDefaultLoan(), id: 'LN_001', facilityCd: 'FAC_001', customerNo: 'CUST_001', customerName: '测试企业A', industryCn: '制造业', segment: '大型', productType: '公司贷款', amtFinancedCny: 5000000, loanBalCny: 5000000, intAccruedCny: 10000, interestRate: 4.5, loanStartDt: d.subtract(1, 'year').format('YYYY-MM-DD'), loanMaturityDt: d.add(1, 'year').format('YYYY-MM-DD'), overdueDays: 10, guaranteeType: '抵押', businessType: '流动资金贷款' },
-          { ...makeDefaultLoan(), id: 'LN_002', facilityCd: 'FAC_002', customerNo: 'CUST_002', customerName: '测试企业B', industryCn: '制造业', segment: '中型', productType: '公司贷款', amtFinancedCny: 3000000, loanBalCny: 3000000, intAccruedCny: 15000, interestRate: 5.0, loanStartDt: d.subtract(6, 'month').format('YYYY-MM-DD'), loanMaturityDt: d.add(2, 'year').format('YYYY-MM-DD'), overdueDays: 45, guaranteeType: '信用', businessType: '流动资金贷款' },
+          { ...makeDefaultLoan(), id: 'LN_001', facilityCd: 'FAC_001', customerNo: 'CUST_001', customerName: '测试企业A', industryCn: '制造业', segment: '大型', productType: '公司贷款', amtFinancedCny: 5000000, loanBalCny: 5000000, intAccruedCny: 10000, interestRate: 4.5, loanStartDt: d.subtract(1, 'year').format('YYYY-MM-DD'), loanMaturityDt: d.add(1, 'year').format('YYYY-MM-DD'), overdueDays: 10, guaranteeType: '抵押', businessType: 'ON_BS' },
+          { ...makeDefaultLoan(), id: 'LN_002', facilityCd: 'FAC_002', customerNo: 'CUST_002', customerName: '测试企业B', industryCn: '制造业', segment: '中型', productType: '公司贷款', amtFinancedCny: 3000000, loanBalCny: 3000000, intAccruedCny: 15000, interestRate: 5.0, loanStartDt: d.subtract(6, 'month').format('YYYY-MM-DD'), loanMaturityDt: d.add(2, 'year').format('YYYY-MM-DD'), overdueDays: 45, guaranteeType: '信用', businessType: 'ON_BS' },
         ]);
         setFacilities([
-          { ...makeDefaultFacility(), id: 'FAC_001', customerNo: 'CUST_001', customerName: '测试企业A', totalLimitCny: 8000000, usedLimitCny: 5000000, availableLimitCny: 3000000, collateralPoolId: 'POOL_001', riskGrade: 'AA' },
-          { ...makeDefaultFacility(), id: 'FAC_002', customerNo: 'CUST_002', customerName: '测试企业B', totalLimitCny: 5000000, usedLimitCny: 3000000, availableLimitCny: 2000000, collateralPoolId: 'POOL_002', riskGrade: 'BBB' },
+          { ...makeDefaultFacility(), facilityCd: 'FAC_001', cifNo: 'CUST_001', customerName: '测试企业A', limitAmtCny: 8000000, usedLimit: 5000000, limitAvailAmtCny: 3000000, undrawnAmtCny: 3000000, collateralPoolId: 'POOL_001' },
+          { ...makeDefaultFacility(), facilityCd: 'FAC_002', cifNo: 'CUST_002', customerName: '测试企业B', limitAmtCny: 5000000, usedLimit: 3000000, limitAvailAmtCny: 2000000, undrawnAmtCny: 2000000, collateralPoolId: 'POOL_002' },
         ]);
         setCollaterals([
-          { ...makeDefaultCollateral(), id: 'COL_001', collateralPoolId: 'POOL_001', collateralType: '房产', collateralValueCny: 10000000, coverageRatio: 200 },
-          { ...makeDefaultCollateral(), id: 'COL_002', collateralPoolId: 'POOL_002', collateralType: '信用', collateralValueCny: 0, coverageRatio: 0 },
+          { ...makeDefaultCollateral(), collateralCode: 'COL_001', cifNo: 'CUST_001', customerName: '测试企业A', facilityUniqueCode: 'FAC_001', collateralPoolCode: 'POOL_001', collateralCategory: '房产', collateralType: '房产', collateralValue: 10000000, appraisalValue: 10000000 },
+          { ...makeDefaultCollateral(), collateralCode: 'COL_002', cifNo: 'CUST_002', customerName: '测试企业B', facilityUniqueCode: 'FAC_002', collateralPoolCode: 'POOL_002', collateralCategory: '信用', collateralType: '信用', collateralValue: 0, appraisalValue: 0 },
         ]);
         setRatings([
-          { ...makeDefaultRating(), id: 'RAT_001', customerNo: 'CUST_001', ratingCode: 'AAA', ratingDate: d.subtract(3, 'month').format('YYYY-MM-DD') },
-          { ...makeDefaultRating(), id: 'RAT_002', customerNo: 'CUST_002', ratingCode: 'BBB', ratingDate: d.subtract(6, 'month').format('YYYY-MM-DD') },
+          { ...makeDefaultRating(), cifNo: 'CUST_001', customerName: '测试企业A', crrFinal: 'CRR4', crrIntThisYear: 'CRR4' },
+          { ...makeDefaultRating(), cifNo: 'CUST_002', customerName: '测试企业B', crrFinal: 'CRR6', crrIntThisYear: 'CRR6' },
         ]);
         setRepaymentSchedules([
-          { ...makeDefaultRepayment('LN_001'), id: 'REP_001', loanId: 'LN_001', dueDt: d.add(6, 'month').format('YYYY-MM-DD'), duePrincipal: 2500000, dueInterest: 50000 },
-          { ...makeDefaultRepayment('LN_001'), id: 'REP_002', loanId: 'LN_001', dueDt: d.add(12, 'month').format('YYYY-MM-DD'), duePrincipal: 2500000, dueInterest: 50000 },
+          { ...makeDefaultRepayment('LN_001'), loanReceiptNo: 'LN_001', totalPeriods: 2, periodNo: 1, dueDate: d.add(6, 'month').format('YYYY-MM-DD'), duePrincipal: 2500000, dueInterest: 50000 },
+          { ...makeDefaultRepayment('LN_001'), loanReceiptNo: 'LN_001', totalPeriods: 2, periodNo: 2, dueDate: d.add(12, 'month').format('YYYY-MM-DD'), duePrincipal: 2500000, dueInterest: 50000 },
         ]);
         setHistoricalStages([]);
         break;
       }
       case 'retail_multi': {
         setLoans([
-          { ...makeDefaultLoan(), id: 'LN_003', facilityCd: 'FAC_003', customerNo: 'CUST_003', customerName: '测试个人A', industryCn: '其他', segment: '个人', productType: '个消费贷', amtFinancedCny: 150000, loanBalCny: 150000, intAccruedCny: 0, interestRate: 6.0, loanStartDt: d.subtract(1, 'year').format('YYYY-MM-DD'), loanMaturityDt: d.add(1, 'year').format('YYYY-MM-DD'), overdueDays: 0, guaranteeType: '信用', businessType: '消费贷' },
-          { ...makeDefaultLoan(), id: 'LN_004', facilityCd: 'FAC_004', customerNo: 'CUST_004', customerName: '测试个人B', industryCn: '其他', segment: '个人', productType: '个消费贷', amtFinancedCny: 80000, loanBalCny: 80000, intAccruedCny: 0, interestRate: 6.5, loanStartDt: d.subtract(6, 'month').format('YYYY-MM-DD'), loanMaturityDt: d.add(1, 'year').format('YYYY-MM-DD'), overdueDays: 5, guaranteeType: '信用', businessType: '消费贷' },
+          { ...makeDefaultLoan(), id: 'LN_003', facilityCd: 'FAC_003', customerNo: 'CUST_003', customerName: '测试个人A', industryCn: '其他', segment: '个人', productType: '个消费贷', amtFinancedCny: 150000, loanBalCny: 150000, intAccruedCny: 0, interestRate: 6.0, loanStartDt: d.subtract(1, 'year').format('YYYY-MM-DD'), loanMaturityDt: d.add(1, 'year').format('YYYY-MM-DD'), overdueDays: 0, guaranteeType: '信用', businessType: 'ON_BS' },
+          { ...makeDefaultLoan(), id: 'LN_004', facilityCd: 'FAC_004', customerNo: 'CUST_004', customerName: '测试个人B', industryCn: '其他', segment: '个人', productType: '个消费贷', amtFinancedCny: 80000, loanBalCny: 80000, intAccruedCny: 0, interestRate: 6.5, loanStartDt: d.subtract(6, 'month').format('YYYY-MM-DD'), loanMaturityDt: d.add(1, 'year').format('YYYY-MM-DD'), overdueDays: 5, guaranteeType: '信用', businessType: 'ON_BS' },
         ]);
         setFacilities([
-          { ...makeDefaultFacility(), id: 'FAC_003', customerNo: 'CUST_003', customerName: '测试个人A', totalLimitCny: 150000, usedLimitCny: 150000, availableLimitCny: 0, collateralPoolId: 'POOL_003', riskGrade: 'A' },
-          { ...makeDefaultFacility(), id: 'FAC_004', customerNo: 'CUST_004', customerName: '测试个人B', totalLimitCny: 80000, usedLimitCny: 80000, availableLimitCny: 0, collateralPoolId: 'POOL_004', riskGrade: 'BBB' },
+          { ...makeDefaultFacility(), facilityCd: 'FAC_003', cifNo: 'CUST_003', customerName: '测试个人A', limitAmtCny: 150000, usedLimit: 150000, limitAvailAmtCny: 0, undrawnAmtCny: 0, collateralPoolId: 'POOL_003' },
+          { ...makeDefaultFacility(), facilityCd: 'FAC_004', cifNo: 'CUST_004', customerName: '测试个人B', limitAmtCny: 80000, usedLimit: 80000, limitAvailAmtCny: 0, undrawnAmtCny: 0, collateralPoolId: 'POOL_004' },
         ]);
         setCollaterals([
-          { ...makeDefaultCollateral(), id: 'COL_003', collateralPoolId: 'POOL_003', collateralType: '信用', collateralValueCny: 0, coverageRatio: 0 },
+          { ...makeDefaultCollateral(), collateralCode: 'COL_003', cifNo: 'CUST_003', customerName: '测试个人A', facilityUniqueCode: 'FAC_003', collateralPoolCode: 'POOL_003', collateralCategory: '信用', collateralType: '信用', collateralValue: 0, appraisalValue: 0 },
         ]);
         setRatings([
-          { ...makeDefaultRating(), id: 'RAT_003', customerNo: 'CUST_003', ratingCode: 'A', ratingDate: d.subtract(3, 'month').format('YYYY-MM-DD') },
-          { ...makeDefaultRating(), id: 'RAT_004', customerNo: 'CUST_004', ratingCode: 'BBB', ratingDate: d.subtract(6, 'month').format('YYYY-MM-DD') },
+          { ...makeDefaultRating(), cifNo: 'CUST_003', customerName: '测试个人A', crrFinal: 'CRR4', crrIntThisYear: 'CRR4' },
+          { ...makeDefaultRating(), cifNo: 'CUST_004', customerName: '测试个人B', crrFinal: 'CRR6', crrIntThisYear: 'CRR6' },
         ]);
         setRepaymentSchedules([]);
         setHistoricalStages([]);
@@ -311,7 +318,7 @@ const TrialCenter: React.FC = () => {
             <div className="trial-field"><label>担保类型</label>
               {select(r.guaranteeType, (v) => updateLoan(idx, { guaranteeType: v }), GUARANTEE_TYPES)}</div>
             <div className="trial-field"><label>业务类型</label>
-              <Input style={{ width: 120, fontSize: 11 }} size="small" value={r.businessType} onChange={(e) => updateLoan(idx, { businessType: e.target.value })} /></div>
+              {select(r.businessType, (v) => updateLoan(idx, { businessType: v }), BUSINESS_TYPE_OPTIONS)}</div>
             <div className="trial-field"><label>授信编码</label>
               <Input style={{ width: 100, fontSize: 11 }} size="small" value={r.facilityCd} onChange={(e) => updateLoan(idx, { facilityCd: e.target.value })} /></div>
             {rows.length > 1 && (
@@ -333,26 +340,26 @@ const TrialCenter: React.FC = () => {
         {rows.length === 0 && <span style={{ color: '#999', fontSize: 12 }}>暂无数据，请添加授信额度</span>}
         {rows.map((r, idx) => (
           <div key={idx} className="trial-source-row">
-            <div className="trial-field"><label>ID</label>
-              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.id} onChange={(e) => updateFacility(idx, { id: e.target.value })} /></div>
+            <div className="trial-field"><label>授信编号</label>
+              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.facilityCd} onChange={(e) => updateFacility(idx, { facilityCd: e.target.value })} /></div>
             <div className="trial-field"><label>客户号</label>
-              <Input style={{ width: 100, fontSize: 11 }} size="small" value={r.customerNo} onChange={(e) => updateFacility(idx, { customerNo: e.target.value })} /></div>
-            <div className="trial-field"><label>授信类型</label>
-              {select(r.facilityType, (v) => updateFacility(idx, { facilityType: v }), FACILITY_TYPES)}</div>
-            <div className="trial-field"><label>总额(CNY)</label>
-              <InputNumber style={{ width: 120, fontSize: 11 }} size="small" value={r.totalLimitCny} onChange={(v) => updateFacility(idx, { totalLimitCny: v ?? undefined })} min={0} step={10000} /></div>
+              <Input style={{ width: 100, fontSize: 11 }} size="small" value={r.cifNo} onChange={(e) => updateFacility(idx, { cifNo: e.target.value })} /></div>
+            <div className="trial-field"><label>额度币种</label>
+              <Input style={{ width: 80, fontSize: 11 }} size="small" value={r.limitCurrencyCd} onChange={(e) => updateFacility(idx, { limitCurrencyCd: e.target.value })} /></div>
+            <div className="trial-field"><label>授信总额</label>
+              <InputNumber style={{ width: 120, fontSize: 11 }} size="small" value={r.limitAmtCny} onChange={(v) => updateFacility(idx, { limitAmtCny: v ?? undefined })} min={0} step={10000} /></div>
             <div className="trial-field"><label>已用额度</label>
-              <InputNumber style={{ width: 110, fontSize: 11 }} size="small" value={r.usedLimitCny} onChange={(v) => updateFacility(idx, { usedLimitCny: v ?? undefined })} min={0} step={10000} /></div>
-            <div className="trial-field"><label>可用额度</label>
-              <InputNumber style={{ width: 110, fontSize: 11 }} size="small" value={r.availableLimitCny} onChange={(v) => updateFacility(idx, { availableLimitCny: v ?? undefined })} min={0} step={10000} /></div>
-            <div className="trial-field"><label>生效日</label>
-              <DatePicker size="small" style={{ width: 120, fontSize: 11 }} value={r.effectiveDt ? dayjs(r.effectiveDt) : undefined} onChange={(v) => updateFacility(idx, { effectiveDt: v ? v.format('YYYY-MM-DD') : undefined })} /></div>
+              <InputNumber style={{ width: 110, fontSize: 11 }} size="small" value={r.usedLimit} onChange={(v) => updateFacility(idx, { usedLimit: v ?? undefined })} min={0} step={10000} /></div>
+            <div className="trial-field"><label>未提款</label>
+              <InputNumber style={{ width: 110, fontSize: 11 }} size="small" value={r.undrawnAmtCny} onChange={(v) => updateFacility(idx, { undrawnAmtCny: v ?? undefined })} min={0} step={10000} /></div>
+            <div className="trial-field"><label>循环标志</label>
+              {select(r.isRevolving, (v) => updateFacility(idx, { isRevolving: v }), REVOLVING_OPTIONS)}</div>
+            <div className="trial-field"><label>起始日</label>
+              <DatePicker size="small" style={{ width: 120, fontSize: 11 }} value={r.facilityStartDate ? dayjs(r.facilityStartDate) : undefined} onChange={(v) => updateFacility(idx, { facilityStartDate: v ? v.format('YYYY-MM-DD') : undefined })} /></div>
             <div className="trial-field"><label>到期日</label>
-              <DatePicker size="small" style={{ width: 120, fontSize: 11 }} value={r.expiryDt ? dayjs(r.expiryDt) : undefined} onChange={(v) => updateFacility(idx, { expiryDt: v ? v.format('YYYY-MM-DD') : undefined })} /></div>
-            <div className="trial-field"><label>抵押池</label>
+              <DatePicker size="small" style={{ width: 120, fontSize: 11 }} value={r.facilityMaturityDate ? dayjs(r.facilityMaturityDate) : undefined} onChange={(v) => updateFacility(idx, { facilityMaturityDate: v ? v.format('YYYY-MM-DD') : undefined })} /></div>
+            <div className="trial-field"><label>押品池</label>
               <Input style={{ width: 100, fontSize: 11 }} size="small" value={r.collateralPoolId} onChange={(e) => updateFacility(idx, { collateralPoolId: e.target.value })} /></div>
-            <div className="trial-field"><label>风险等级</label>
-              {select(r.riskGrade, (v) => updateFacility(idx, { riskGrade: v }), RATING_CODES)}</div>
             {rows.length > 1 && (
               <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removeFacility(idx)} style={{ alignSelf: 'center' }} />
             )}
@@ -372,22 +379,18 @@ const TrialCenter: React.FC = () => {
         {rows.length === 0 && <span style={{ color: '#999', fontSize: 12 }}>暂无还款计划数据</span>}
         {rows.map((r, idx) => (
           <div key={idx} className="trial-source-row">
-            <div className="trial-field"><label>ID</label>
-              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.id} onChange={(e) => updateRepayment(idx, { id: e.target.value })} /></div>
-            <div className="trial-field"><label>借据ID</label>
-              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.loanId} onChange={(e) => updateRepayment(idx, { loanId: e.target.value })} /></div>
+            <div className="trial-field"><label>借据编号</label>
+              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.loanReceiptNo} onChange={(e) => updateRepayment(idx, { loanReceiptNo: e.target.value })} /></div>
+            <div className="trial-field"><label>总期数</label>
+              <InputNumber style={{ width: 80, fontSize: 11 }} size="small" value={r.totalPeriods} onChange={(v) => updateRepayment(idx, { totalPeriods: v ?? undefined })} min={1} /></div>
+            <div className="trial-field"><label>当前期数</label>
+              <InputNumber style={{ width: 80, fontSize: 11 }} size="small" value={r.periodNo} onChange={(v) => updateRepayment(idx, { periodNo: v ?? undefined })} min={1} /></div>
             <div className="trial-field"><label>到期日</label>
-              <DatePicker size="small" style={{ width: 120, fontSize: 11 }} value={r.dueDt ? dayjs(r.dueDt) : undefined} onChange={(v) => updateRepayment(idx, { dueDt: v ? v.format('YYYY-MM-DD') : undefined })} /></div>
+              <DatePicker size="small" style={{ width: 120, fontSize: 11 }} value={r.dueDate ? dayjs(r.dueDate) : undefined} onChange={(v) => updateRepayment(idx, { dueDate: v ? v.format('YYYY-MM-DD') : undefined })} /></div>
             <div className="trial-field"><label>应还本金</label>
               <InputNumber style={{ width: 110, fontSize: 11 }} size="small" value={r.duePrincipal} onChange={(v) => updateRepayment(idx, { duePrincipal: v ?? undefined })} min={0} /></div>
             <div className="trial-field"><label>应还利息</label>
               <InputNumber style={{ width: 110, fontSize: 11 }} size="small" value={r.dueInterest} onChange={(v) => updateRepayment(idx, { dueInterest: v ?? undefined })} min={0} /></div>
-            <div className="trial-field"><label>已还本金</label>
-              <InputNumber style={{ width: 110, fontSize: 11 }} size="small" value={r.repaidPrincipal} onChange={(v) => updateRepayment(idx, { repaidPrincipal: v ?? undefined })} min={0} /></div>
-            <div className="trial-field"><label>已还利息</label>
-              <InputNumber style={{ width: 110, fontSize: 11 }} size="small" value={r.repaidInterest} onChange={(v) => updateRepayment(idx, { repaidInterest: v ?? undefined })} min={0} /></div>
-            <div className="trial-field"><label>还款类型</label>
-              {select(r.repaymentType, (v) => updateRepayment(idx, { repaymentType: v }), REPAYMENT_TYPES, '正常')}</div>
             <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removeRepayment(idx)} style={{ alignSelf: 'center' }} />
           </div>
         ))}
@@ -405,18 +408,26 @@ const TrialCenter: React.FC = () => {
         {rows.length === 0 && <span style={{ color: '#999', fontSize: 12 }}>暂无抵质押品数据</span>}
         {rows.map((r, idx) => (
           <div key={idx} className="trial-source-row">
-            <div className="trial-field"><label>ID</label>
-              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.id} onChange={(e) => updateCollateral(idx, { id: e.target.value })} /></div>
-            <div className="trial-field"><label>抵押池ID</label>
-              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.collateralPoolId} onChange={(e) => updateCollateral(idx, { collateralPoolId: e.target.value })} /></div>
-            <div className="trial-field"><label>类型</label>
+            <div className="trial-field"><label>押品编号</label>
+              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.collateralCode} onChange={(e) => updateCollateral(idx, { collateralCode: e.target.value })} /></div>
+            <div className="trial-field"><label>押品池编码</label>
+              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.collateralPoolCode} onChange={(e) => updateCollateral(idx, { collateralPoolCode: e.target.value })} /></div>
+            <div className="trial-field"><label>客户号</label>
+              <Input style={{ width: 100, fontSize: 11 }} size="small" value={r.cifNo} onChange={(e) => updateCollateral(idx, { cifNo: e.target.value })} /></div>
+            <div className="trial-field"><label>授信编号</label>
+              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.facilityUniqueCode} onChange={(e) => updateCollateral(idx, { facilityUniqueCode: e.target.value })} /></div>
+            <div className="trial-field"><label>押品分类</label>
+              {select(r.collateralCategory, (v) => updateCollateral(idx, { collateralCategory: v }), COLLATERAL_TYPES)}</div>
+            <div className="trial-field"><label>押品类型</label>
               {select(r.collateralType, (v) => updateCollateral(idx, { collateralType: v }), COLLATERAL_TYPES)}</div>
-            <div className="trial-field"><label>价值(CNY)</label>
-              <InputNumber style={{ width: 120, fontSize: 11 }} size="small" value={r.collateralValueCny} onChange={(v) => updateCollateral(idx, { collateralValueCny: v ?? undefined })} min={0} step={10000} /></div>
-            <div className="trial-field"><label>覆盖率(%)</label>
-              <InputNumber style={{ width: 90, fontSize: 11 }} size="small" value={r.coverageRatio} onChange={(v) => updateCollateral(idx, { coverageRatio: v ?? undefined })} min={0} /></div>
-            <div className="trial-field"><label>评估日</label>
-              <DatePicker size="small" style={{ width: 120, fontSize: 11 }} value={r.valuationDt ? dayjs(r.valuationDt) : undefined} onChange={(v) => updateCollateral(idx, { valuationDt: v ? v.format('YYYY-MM-DD') : undefined })} /></div>
+            <div className="trial-field"><label>押品价值</label>
+              <InputNumber style={{ width: 120, fontSize: 11 }} size="small" value={r.collateralValue} onChange={(v) => updateCollateral(idx, { collateralValue: v ?? undefined })} min={0} step={10000} /></div>
+            <div className="trial-field"><label>评估价值</label>
+              <InputNumber style={{ width: 120, fontSize: 11 }} size="small" value={r.appraisalValue} onChange={(v) => updateCollateral(idx, { appraisalValue: v ?? undefined })} min={0} step={10000} /></div>
+            <div className="trial-field"><label>评估生效日</label>
+              <DatePicker size="small" style={{ width: 120, fontSize: 11 }} value={r.appraisalEffectiveDate ? dayjs(r.appraisalEffectiveDate) : undefined} onChange={(v) => updateCollateral(idx, { appraisalEffectiveDate: v ? v.format('YYYY-MM-DD') : undefined })} /></div>
+            <div className="trial-field"><label>担保方式</label>
+              <Input style={{ width: 90, fontSize: 11 }} size="small" value={r.guaranteeMethod} onChange={(e) => updateCollateral(idx, { guaranteeMethod: e.target.value })} /></div>
             {rows.length > 1 && (
               <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removeCollateral(idx)} style={{ alignSelf: 'center' }} />
             )}
@@ -436,14 +447,24 @@ const TrialCenter: React.FC = () => {
         {rows.length === 0 && <span style={{ color: '#999', fontSize: 12 }}>暂无评级数据</span>}
         {rows.map((r, idx) => (
           <div key={idx} className="trial-source-row">
-            <div className="trial-field"><label>ID</label>
-              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.id} onChange={(e) => updateRating(idx, { id: e.target.value })} /></div>
             <div className="trial-field"><label>客户号</label>
-              <Input style={{ width: 100, fontSize: 11 }} size="small" value={r.customerNo} onChange={(e) => updateRating(idx, { customerNo: e.target.value })} /></div>
-            <div className="trial-field"><label>评级代码</label>
-              {select(r.ratingCode, (v) => updateRating(idx, { ratingCode: v }), RATING_CODES)}</div>
-            <div className="trial-field"><label>评级日期</label>
-              <DatePicker size="small" style={{ width: 120, fontSize: 11 }} value={r.ratingDate ? dayjs(r.ratingDate) : undefined} onChange={(v) => updateRating(idx, { ratingDate: v ? v.format('YYYY-MM-DD') : undefined })} /></div>
+              <Input style={{ width: 100, fontSize: 11 }} size="small" value={r.cifNo} onChange={(e) => updateRating(idx, { cifNo: e.target.value })} /></div>
+            <div className="trial-field"><label>客户名称</label>
+              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.customerName} onChange={(e) => updateRating(idx, { customerName: e.target.value })} /></div>
+            <div className="trial-field"><label>上年内部</label>
+              {select(r.crrIntLastYear, (v) => updateRating(idx, { crrIntLastYear: v }), RATING_CODES)}</div>
+            <div className="trial-field"><label>本年内部</label>
+              {select(r.crrIntThisYear, (v) => updateRating(idx, { crrIntThisYear: v }), RATING_CODES)}</div>
+            <div className="trial-field"><label>最终评级</label>
+              {select(r.crrFinal, (v) => updateRating(idx, { crrFinal: v }), RATING_CODES)}</div>
+            <div className="trial-field"><label>上年外评机构</label>
+              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.extRatingCoLastYear} onChange={(e) => updateRating(idx, { extRatingCoLastYear: e.target.value })} /></div>
+            <div className="trial-field"><label>上年外评</label>
+              {select(r.extRatingLastYear, (v) => updateRating(idx, { extRatingLastYear: v }), RATING_CODES)}</div>
+            <div className="trial-field"><label>本年外评机构</label>
+              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.extRatingCoThisYear} onChange={(e) => updateRating(idx, { extRatingCoThisYear: e.target.value })} /></div>
+            <div className="trial-field"><label>本年外评</label>
+              {select(r.extRatingThisYear, (v) => updateRating(idx, { extRatingThisYear: v }), RATING_CODES)}</div>
             {rows.length > 1 && (
               <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removeRating(idx)} style={{ alignSelf: 'center' }} />
             )}
@@ -463,16 +484,12 @@ const TrialCenter: React.FC = () => {
         {rows.length === 0 && <span style={{ color: '#999', fontSize: 12 }}>暂无历史阶段数据</span>}
         {rows.map((r, idx) => (
           <div key={idx} className="trial-source-row">
-            <div className="trial-field"><label>ID</label>
-              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.id} onChange={(e) => updateHistoricalStage(idx, { id: e.target.value })} /></div>
             <div className="trial-field"><label>借据ID</label>
-              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.loanId} onChange={(e) => updateHistoricalStage(idx, { loanId: e.target.value })} /></div>
+              <Input style={{ width: 110, fontSize: 11 }} size="small" value={r.assetId} onChange={(e) => updateHistoricalStage(idx, { assetId: e.target.value })} /></div>
             <div className="trial-field"><label>阶段</label>
-              {select(r.stage, (v) => updateHistoricalStage(idx, { stage: v }), STAGE_OPTIONS)}</div>
-            <div className="trial-field"><label>阶段日期</label>
-              <DatePicker size="small" style={{ width: 120, fontSize: 11 }} value={r.stageDate ? dayjs(r.stageDate) : undefined} onChange={(v) => updateHistoricalStage(idx, { stageDate: v ? v.format('YYYY-MM-DD') : undefined })} /></div>
-            <div className="trial-field"><label>原因</label>
-              <Input style={{ width: 140, fontSize: 11 }} size="small" value={r.reasonCode} onChange={(e) => updateHistoricalStage(idx, { reasonCode: e.target.value })} /></div>
+              {select(r.stageResult, (v) => updateHistoricalStage(idx, { stageResult: v }), STAGE_OPTIONS)}</div>
+            <div className="trial-field"><label>跑批日期</label>
+              <DatePicker size="small" style={{ width: 120, fontSize: 11 }} value={r.calcDate ? dayjs(r.calcDate) : undefined} onChange={(v) => updateHistoricalStage(idx, { calcDate: v ? v.format('YYYY-MM-DD') : undefined })} /></div>
             <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removeHistoricalStage(idx)} style={{ alignSelf: 'center' }} />
           </div>
         ))}

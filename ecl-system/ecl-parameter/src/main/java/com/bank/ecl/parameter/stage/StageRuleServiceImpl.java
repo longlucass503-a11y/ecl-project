@@ -154,6 +154,7 @@ public class StageRuleServiceImpl implements StageRuleService {
         CrrRatingDropRuleEntity entity = new CrrRatingDropRuleEntity();
         entity.setSchemeId(req.getSchemeId());
         entity.setGroupId(req.getGroupId());
+        entity.setRatingAgency(normalizeRatingAgency(req.getRatingAgency()));
         entity.setCurrentRating(req.getCurrentRating());
         entity.setDropThreshold(firstPresent(req.getDropThreshold(), req.getDowngradeThreshold()));
 
@@ -170,6 +171,7 @@ public class StageRuleServiceImpl implements StageRuleService {
         }
         checkSchemeDraft(entity.getSchemeId());
 
+        entity.setRatingAgency(normalizeRatingAgency(req.getRatingAgency()));
         entity.setCurrentRating(req.getCurrentRating());
         entity.setDropThreshold(firstPresent(req.getDropThreshold(), req.getDowngradeThreshold()));
 
@@ -214,10 +216,15 @@ public class StageRuleServiceImpl implements StageRuleService {
         vo.setRuleId(entity.getDropRuleId());
         vo.setSchemeId(entity.getSchemeId());
         vo.setGroupId(entity.getGroupId());
+        vo.setRatingAgency(entity.getRatingAgency());
         vo.setCurrentRating(entity.getCurrentRating());
         vo.setDropThreshold(entity.getDropThreshold());
         vo.setDowngradeThreshold(entity.getDropThreshold());
         return vo;
+    }
+
+    private String normalizeRatingAgency(String ratingAgency) {
+        return ratingAgency != null && !ratingAgency.isBlank() ? ratingAgency : "INTERNAL_CRR";
     }
 
     private String firstPresent(String primary, String fallback) {

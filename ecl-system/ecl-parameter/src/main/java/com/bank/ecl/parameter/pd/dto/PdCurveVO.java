@@ -10,6 +10,7 @@ public class PdCurveVO {
     private String schemeId;
     private String groupId;
     private Long scenarioId;
+    private String ratingAgency;
     private String ratingCode;
     private BigDecimal pdValue;
 }

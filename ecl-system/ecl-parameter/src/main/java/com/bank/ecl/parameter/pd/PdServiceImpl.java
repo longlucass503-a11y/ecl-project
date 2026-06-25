@@ -193,6 +193,7 @@ public class PdServiceImpl implements PdService {
                 entity.setSchemeId(req.getSchemeId());
                 entity.setGroupId(req.getGroupId());
                 entity.setScenarioId(item.getScenarioId());
+                entity.setRatingAgency(item.getRatingAgency());
                 entity.setRatingCode(item.getRatingCode());
                 entity.setPdValue(item.getPdValue());
                 pdCurveMapper.insert(entity);
@@ -275,6 +276,7 @@ public class PdServiceImpl implements PdService {
         vo.setSchemeId(entity.getSchemeId());
         vo.setGroupId(entity.getGroupId());
         vo.setScenarioId(entity.getScenarioId());
+        vo.setRatingAgency(entity.getRatingAgency());
         vo.setRatingCode(entity.getRatingCode());
         vo.setPdValue(entity.getPdValue());
         return vo;

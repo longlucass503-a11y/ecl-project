@@ -89,7 +89,7 @@ function conditionLabel(c: ConditionItem): string {
     case '违约标识':
       return `违约标识 = ${c.value}`;
     case 'CRR 评级下降':
-      return `CRR 下降 ≥ ${c.value} 级`;
+      return 'CRR 评级下降';
     case '还款状态':
       return `还款状态 = ${c.value}`;
     case '逾期状态':
@@ -1404,19 +1404,18 @@ const StageConfig: React.FC = () => {
                       )}
 
                       {c.type === 'CRR 评级下降' && (
-                        <>
-                          <input
-                            value={c.value || ''}
-                            placeholder="级数"
-                            style={{ width: 60 }}
-                            onChange={(e) => {
-                              const updated = [...editorConditions];
-                              updated[i] = { ...updated[i], value: e.target.value };
-                              setEditorConditions(updated);
-                            }}
-                          />
-                          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>级</span>
-                        </>
+                        <select
+                          style={{ width: 70 }}
+                          value={c.value || '是'}
+                          onChange={(e) => {
+                            const updated = [...editorConditions];
+                            updated[i] = { ...updated[i], value: e.target.value };
+                            setEditorConditions(updated);
+                          }}
+                        >
+                          <option value="是">是</option>
+                          <option value="否">否</option>
+                        </select>
                       )}
 
                       {c.type === '还款状态' && (
@@ -1519,6 +1518,7 @@ const StageConfig: React.FC = () => {
                         obj.maxExclusive = c.maxExclusive || false;
                       }
                       else if (c.type === '五级分类') { obj.operator = c.operator; obj.values = c.values || []; }
+                      else if (c.type === 'CRR 评级下降') { obj.operator = 'eq'; obj.value = c.value === '是'; }
                       else if (c.type === '违约标识') { obj.operator = 'eq'; obj.value = c.value === '是'; }
                       else { obj.operator = c.operator || 'eq'; obj.value = c.value; }
                       return obj;

@@ -22,6 +22,7 @@ public class PdCurveBatchReq {
     @Data
     public static class PdCurveItem {
         private Long scenarioId;
+        private String ratingAgency;
         private String ratingCode;
         private BigDecimal pdValue;
     }

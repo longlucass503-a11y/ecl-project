@@ -60,6 +60,7 @@ class PdServiceImplTest {
 
         PdCurveBatchReq.PdCurveItem item = new PdCurveBatchReq.PdCurveItem();
         item.setScenarioId(2L);
+        item.setRatingAgency("MOODY");
         item.setRatingCode("AAA");
         item.setPdValue(new BigDecimal("0.0012"));
 
@@ -75,6 +76,7 @@ class PdServiceImplTest {
         assertEquals("scheme-1", inserted.getSchemeId());
         assertEquals("group-1", inserted.getGroupId());
         assertEquals(2L, inserted.getScenarioId());
+        assertEquals("MOODY", inserted.getRatingAgency());
         assertEquals(new BigDecimal("0.0012"), inserted.getPdValue());
     }
 

@@ -69,7 +69,6 @@ public class StageEngine implements EclEngine {
                         Collectors.toMap(
                                 r -> ratingDropKey(
                                         r.getGroupId(),
-                                        r.getRatingSystem(),
                                         r.getRatingAgency(),
                                         r.getCurrentRating()),
                                 CrrRatingDropRuleEntity::getDropThreshold,
@@ -222,12 +221,11 @@ public class StageEngine implements EclEngine {
     }
 
     /**
-     * 构建包含 ratingSystem 和 ratingAgency 的评级下降 key。
+     * 构建包含评级来源/评级机构的评级下降 key。
      */
-    private String ratingDropKey(String groupId, String ratingSystem, String ratingAgency, String currentRating) {
+    private String ratingDropKey(String groupId, String ratingAgency, String currentRating) {
         return String.join("|",
                 nvl(groupId),
-                nvl(ratingSystem, "INTERNAL_CRR"),
                 nvl(ratingAgency, "INTERNAL_CRR"),
                 nvl(currentRating));
     }

@@ -15,4 +15,6 @@
     <include file="010-fix-json-nullable.sql" relativeToChangelogFile="true"/>
     <include file="011-add-lgd-collateral-category.sql" relativeToChangelogFile="true"/>
     <include file="012-engine-alignment-fields.sql" relativeToChangelogFile="true"/>
+    <include file="013-fix-engine-alignment-schema.sql" relativeToChangelogFile="true"/>
+    <include file="014-drop-rating-system.sql" relativeToChangelogFile="true"/>
 </databaseChangeLog>

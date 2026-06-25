@@ -99,14 +99,17 @@ class StageRuleServiceImplTest {
         CrrDropRuleCreateReq req = new CrrDropRuleCreateReq();
         req.setSchemeId("scheme-1");
         req.setGroupId("group-1");
+        req.setRatingAgency("MOODY");
         req.setCurrentRating("CRR 3");
         req.setDowngradeThreshold(4);
 
         CrrDropRuleVO result = stageRuleService.createCrrDropRule(req);
 
         verify(crrRatingDropRuleMapper).insert(crrRuleCaptor.capture());
+        assertEquals("MOODY", crrRuleCaptor.getValue().getRatingAgency());
         assertEquals(4, crrRuleCaptor.getValue().getDropThreshold());
         assertEquals(200L, result.getRuleId());
+        assertEquals("MOODY", result.getRatingAgency());
         assertEquals(4, result.getDowngradeThreshold());
     }
 

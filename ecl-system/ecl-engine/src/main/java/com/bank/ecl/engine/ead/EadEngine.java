@@ -60,6 +60,12 @@ public class EadEngine implements EclEngine {
     // ========== On-balance EAD ==========
 
     private void processOnBsEad(AssetInput asset, double discountRate) {
+        if (isOffBalance(asset)) {
+            asset.setOnBsEad(0.0);
+            asset.setEadBreakdown("businessType=OFF_BS");
+            return;
+        }
+
         List<RepaymentScheduleInput> schedules = asset.getRepaymentSchedules();
         if (schedules != null && !schedules.isEmpty() && asset.getCalcDate() != null) {
             double sum = 0.0;
@@ -159,6 +165,9 @@ public class EadEngine implements EclEngine {
         String productType = asset.getProductType();
         String commitmentType = asset.getCommitmentType();
         Integer commitmentDays = asset.getCommitmentDays();
+        if (productType == null || commitmentType == null) {
+            return defaultCcf;
+        }
 
         // If commitmentDays is set, prefer a curve whose days range covers it
         if (commitmentDays != null) {
@@ -181,6 +190,11 @@ public class EadEngine implements EclEngine {
         }
 
         return defaultCcf;
+    }
+
+    private boolean isOffBalance(AssetInput asset) {
+        String businessType = asset.getBusinessType();
+        return businessType != null && "OFF_BS".equalsIgnoreCase(businessType.trim());
     }
 
     private List<CcfCurveEntity> buildCcfCache(String schemeId) {

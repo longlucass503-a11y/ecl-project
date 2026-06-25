@@ -93,4 +93,25 @@ class EclCalcEngineTest {
         assertEquals(14.4, asset.getEclValue(), 0.01);
         assertEquals(2, asset.getEclScenarioResults().size());
     }
+
+    @Test
+    void shouldUseStageAdjustedScenarioPdForWeightedEcl() {
+        AssetInput asset = asset(0.0, 0.45, 1000.0);
+
+        PdScenarioResult base = new PdScenarioResult();
+        base.setScenarioType("BASE");
+        base.setWeight(BigDecimal.valueOf(0.6));
+        base.setPdValue(0.0975);
+
+        PdScenarioResult pess = new PdScenarioResult();
+        pess.setScenarioType("PESS");
+        pess.setWeight(BigDecimal.valueOf(0.4));
+        pess.setPdValue(0.19);
+
+        asset.setPdScenarioResults(List.of(base, pess));
+
+        engine.execute(ctx(asset));
+
+        assertEquals((0.0975 * 0.6 + 0.19 * 0.4) * 0.45 * 1000, asset.getEclValue(), 0.01);
+    }
 }
