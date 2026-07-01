@@ -181,23 +181,49 @@ public class PdServiceImpl implements PdService {
     public void batchUpdateCurves(PdCurveBatchReq req) {
         checkSchemeDraft(req.getSchemeId());
 
-        // 先删后插：删除该方案+分组下所有曲线
-        pdCurveMapper.delete(
-                new LambdaQueryWrapper<PdCurveEntity>()
-                        .eq(PdCurveEntity::getSchemeId, req.getSchemeId())
-                        .eq(PdCurveEntity::getGroupId, req.getGroupId()));
-
-        if (req.getCurves() != null && !req.getCurves().isEmpty()) {
-            for (PdCurveBatchReq.PdCurveItem item : req.getCurves()) {
-                PdCurveEntity entity = new PdCurveEntity();
-                entity.setSchemeId(req.getSchemeId());
-                entity.setGroupId(req.getGroupId());
-                entity.setScenarioId(item.getScenarioId());
-                entity.setRatingAgency(item.getRatingAgency());
-                entity.setRatingCode(item.getRatingCode());
-                entity.setPdValue(item.getPdValue());
-                pdCurveMapper.insert(entity);
+        if (req.getCurves() == null || req.getCurves().isEmpty()) {
+            // 空列表：该情景下曲线全清
+            List<Long> scenarioIds = req.getCurves() == null ? List.of() :
+                    req.getCurves().stream()
+                            .map(PdCurveBatchReq.PdCurveItem::getScenarioId)
+                            .distinct().collect(Collectors.toList());
+            if (!scenarioIds.isEmpty()) {
+                pdCurveMapper.delete(
+                        new LambdaQueryWrapper<PdCurveEntity>()
+                                .eq(PdCurveEntity::getSchemeId, req.getSchemeId())
+                                .eq(PdCurveEntity::getGroupId, req.getGroupId())
+                                .in(PdCurveEntity::getScenarioId, scenarioIds));
             }
+            return;
+        }
+
+        // 按情景分组，以情景为单位删后插
+        // 1. 收集本次请求涉及的所有情景ID
+        List<Long> scenarioIds = req.getCurves().stream()
+                .map(PdCurveBatchReq.PdCurveItem::getScenarioId)
+                .filter(sid -> sid != null)
+                .distinct()
+                .collect(Collectors.toList());
+
+        // 2. 只删除本次请求涉及的情景曲线，保留其他情景的曲线
+        if (!scenarioIds.isEmpty()) {
+            pdCurveMapper.delete(
+                    new LambdaQueryWrapper<PdCurveEntity>()
+                            .eq(PdCurveEntity::getSchemeId, req.getSchemeId())
+                            .eq(PdCurveEntity::getGroupId, req.getGroupId())
+                            .in(PdCurveEntity::getScenarioId, scenarioIds));
+        }
+
+        // 3. 插入本次提交的曲线
+        for (PdCurveBatchReq.PdCurveItem item : req.getCurves()) {
+            PdCurveEntity entity = new PdCurveEntity();
+            entity.setSchemeId(req.getSchemeId());
+            entity.setGroupId(req.getGroupId());
+            entity.setScenarioId(item.getScenarioId());
+            entity.setRatingAgency(item.getRatingAgency());
+            entity.setRatingCode(item.getRatingCode());
+            entity.setPdValue(item.getPdValue());
+            pdCurveMapper.insert(entity);
         }
     }
 
