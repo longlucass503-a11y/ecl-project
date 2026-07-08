@@ -2,12 +2,12 @@ package com.bank.ecl.engine.core;
 
 /**
  * IFRS 9 三阶段枚举。
- * STAGE_1（正常类）→ STAGE_2（关注类）→ STAGE_3（损失类）。
+ * STAGE_1（第一阶段）→ STAGE_2（第二阶段）→ STAGE_3（第三阶段）。
  */
 public enum Stage {
-    STAGE_1("正常类"),
-    STAGE_2("关注类"),
-    STAGE_3("损失类");
+    STAGE_1("第一阶段"),
+    STAGE_2("第二阶段"),
+    STAGE_3("第三阶段");
 
     private final String label;
 
