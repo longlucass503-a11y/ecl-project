@@ -146,8 +146,6 @@ const stageRules = [
     jsonCondition: JSON.stringify({
       logic: 'AND',
       conditions: [
-        { type: '还款状态', operator: 'eq', value: '正常' },
-        { type: '逾期状态', operator: 'eq', value: '已消除' },
       ],
     }),
   },
