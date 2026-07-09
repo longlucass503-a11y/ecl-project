@@ -6,6 +6,7 @@ import com.bank.ecl.common.util.UuidGenerator;
 import com.bank.ecl.data.entity.EclSchemeEntity;
 import com.bank.ecl.data.mapper.*;
 import com.bank.ecl.parameter.copy.SchemeCopyService;
+import com.bank.ecl.parameter.dict.DictService;
 import com.bank.ecl.parameter.scheme.dto.SchemeCreateReq;
 import com.bank.ecl.parameter.scheme.dto.SchemeDiffVO;
 import com.bank.ecl.parameter.scheme.dto.SchemeVO;
@@ -44,6 +45,8 @@ class EclSchemeServiceImplTest {
     @Mock private LgdDepreciationMapper lgdDepreciationMapper;
     @Mock private CcfCurveMapper ccfCurveMapper;
     @Mock private OverlayRuleMapper overlayRuleMapper;
+
+    @Mock private DictService dictService;
 
     @InjectMocks
     private EclSchemeServiceImpl schemeService;

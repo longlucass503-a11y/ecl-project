@@ -203,9 +203,10 @@ public class PdServiceImpl implements PdService {
         }
         List<PdCurveEntity> entities = pdCurveMapper.selectList(wrapper);
         // 按评级刻度排序：同机构内按评级顺序，机构间按 CRR > 穆迪 > 标普 > 惠誉
-        entities.sort(Comparator.comparingInt((PdCurveEntity c) ->
+        List<PdCurveEntity> sorted = new ArrayList<>(entities);
+        sorted.sort(Comparator.comparingInt((PdCurveEntity c) ->
                 RATING_ORDER.getOrDefault(c.getRatingCode(), 999)));
-        return entities.stream().map(this::toCurveVO).collect(Collectors.toList());
+        return sorted.stream().map(this::toCurveVO).collect(Collectors.toList());
     }
 
     @Override

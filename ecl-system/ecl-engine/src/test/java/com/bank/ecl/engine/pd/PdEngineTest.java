@@ -211,9 +211,9 @@ class PdEngineTest {
 
     @Test
     void shouldBlockWhenMaturityDateIsNotAfterCalcDateForAnyStage() {
-        AssetInput asset = asset("GRP_001", "CRR5", Stage.STAGE_3);
+        AssetInput asset = asset("GRP_001", "CRR5", Stage.STAGE_2);
         asset.setMaturityDate(LocalDate.of(2026, 6, 21));
-        asset.setCalcDate(LocalDate.of(2026, 6, 21));
+        asset.setCalcDate(LocalDate.of(2026, 6, 22));
 
         when(scenarioMapper.selectList(any())).thenReturn(List.of(scenario(1L, "BASELINE", "基准", 1.0)));
         when(curveMapper.selectList(any())).thenReturn(Collections.emptyList());
@@ -245,4 +245,34 @@ class PdEngineTest {
         assertEquals(expectedPessLifetime, asset.getPdScenarioResults().get(1).getPdValue(), 0.0001);
         assertEquals(expectedBaseLifetime * 0.6 + expectedPessLifetime * 0.4, asset.getPdLifetime(), 0.0001);
     }
+
+    @Test
+    void shouldReturn0ForStage3WithNoScenarios() {
+        // STAGE_3 无情景时 pdLifetime 为 0.0
+        AssetInput asset = asset("GRP_001", "CRR5", Stage.STAGE_3);
+        when(scenarioMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        engine.execute(ctx("SCH_001", asset));
+
+        assertEquals(0.0, asset.getPdLifetime(), 0.0001);
+        assertTrue(asset.getPdScenarioResults().isEmpty());
+    }
+
+    @Test
+    void shouldHandleMultipleScenariosWithStage3() {
+        // STAGE_3 多情景：每个情景 pd=1.0，按权重加权
+        AssetInput asset = asset("GRP_001", "CRR5", Stage.STAGE_3);
+        when(scenarioMapper.selectList(any())).thenReturn(List.of(
+                scenario(1L, "BASE", "基准", 0.6),
+                scenario(2L, "PESS", "悲观", 0.4)));
+        when(curveMapper.selectList(any())).thenReturn(Collections.emptyList());
+
+        engine.execute(ctx("SCH_001", asset));
+
+        assertEquals(1.0, asset.getPdLifetime(), 0.0001);
+        assertEquals(2, asset.getPdScenarioResults().size());
+        assertEquals(1.0, asset.getPdScenarioResults().get(0).getPdValue(), 0.0001);
+        assertEquals(1.0, asset.getPdScenarioResults().get(1).getPdValue(), 0.0001);
+    }
+
 }

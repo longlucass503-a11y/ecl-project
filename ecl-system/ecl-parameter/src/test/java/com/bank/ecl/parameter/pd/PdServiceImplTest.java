@@ -86,4 +86,37 @@ class PdServiceImplTest {
         scheme.setStatus(SchemeStatus.DRAFT.name());
         return scheme;
     }
+
+    @Test
+    void listCurves_WithoutScenarioId_ShouldReturnAllCurves() {
+        PdCurveEntity e1 = new PdCurveEntity();
+        e1.setCurveId(1L); e1.setSchemeId("scheme-1"); e1.setGroupId("group-1");
+        e1.setScenarioId(1L); e1.setRatingCode("CRR1"); e1.setPdValue(new BigDecimal("0.01"));
+        PdCurveEntity e2 = new PdCurveEntity();
+        e2.setCurveId(2L); e2.setSchemeId("scheme-1"); e2.setGroupId("group-1");
+        e2.setScenarioId(2L); e2.setRatingCode("CRR2"); e2.setPdValue(new BigDecimal("0.02"));
+        when(pdCurveMapper.selectList(any())).thenReturn(List.of(e1, e2));
+
+        List<PdCurveVO> result = pdService.listCurves("scheme-1", "group-1", null);
+
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void listCurves_ShouldSortByRatingOrder() {
+        PdCurveEntity crr2 = new PdCurveEntity();
+        crr2.setCurveId(1L); crr2.setSchemeId("S"); crr2.setGroupId("G");
+        crr2.setScenarioId(1L); crr2.setRatingCode("CRR2"); crr2.setPdValue(new BigDecimal("0.02"));
+        PdCurveEntity crr1 = new PdCurveEntity();
+        crr1.setCurveId(2L); crr1.setSchemeId("S"); crr1.setGroupId("G");
+        crr1.setScenarioId(1L); crr1.setRatingCode("CRR1"); crr1.setPdValue(new BigDecimal("0.01"));
+        when(pdCurveMapper.selectList(any())).thenReturn(List.of(crr2, crr1));
+
+        List<PdCurveVO> result = pdService.listCurves("S", "G", 1L);
+
+        assertEquals(2, result.size());
+        assertEquals("CRR1", result.get(0).getRatingCode());
+        assertEquals("CRR2", result.get(1).getRatingCode());
+    }
+
 }

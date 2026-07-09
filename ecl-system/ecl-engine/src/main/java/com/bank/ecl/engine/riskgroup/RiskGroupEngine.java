@@ -145,7 +145,7 @@ public class RiskGroupEngine implements EclEngine {
         for (String gid : matchedGroupIds) {
             RiskGroupEntity group = groupMap.get(gid);
             Integer sortOrder = (group != null && group.getSortOrder() != null) ? group.getSortOrder() : Integer.MAX_VALUE;
-            if (sortOrder < bestSortOrder) {
+            if (sortOrder < bestSortOrder || bestGroupId == null) {
                 bestSortOrder = sortOrder;
                 bestGroupId = gid;
             }
