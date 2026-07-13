@@ -75,6 +75,9 @@ public class PdEngine implements EclEngine {
 
         // Resolve rating source based on group
         RatingSelection rating = resolveRatingSource(asset);
+        log.info("[6.3 PD DEBUG] asset={} group={} agency={} code={} crrFinal={} extAgency={} extRating={}",
+                asset.getAssetId(), asset.getGroupId(), rating.ratingAgency, rating.ratingCode,
+                asset.getCrrFinal(), asset.getExtRatingCoThisYear(), asset.getExtRatingThisYear());
         String ratingAgency = rating.ratingAgency;
         String ratingCode = rating.ratingCode;
 
@@ -97,9 +100,17 @@ public class PdEngine implements EclEngine {
                         + normalizeRatingAgency(ratingAgency) + "|" + ratingCode;
                 Double cached = cache.get(key);
                 if (cached == null) {
-                    hasMissing = true;
-                    continue;
+                    // 外评未命中，回退到内评
+                    String internalKey = groupId + "|" + s.getScenarioId() + "|"
+                            + "INTERNAL_CRR" + "|" + asset.getCrrFinal();
+                    log.info("[6.3 PD DEBUG] fallback to internal key={}|...", internalKey.substring(0, Math.min(internalKey.length(), 60)));
+                cached = cache.get(internalKey);
+                    if (cached == null) {
+                        hasMissing = true;
+                        continue;
+                    }
                 }
+                log.info("[6.3 PD DEBUG] cache HIT key={}|...", key.substring(0, Math.min(key.length(), 60)));
                 rawPdValue = cached;
                 effectivePdValue = convertByStage(rawPdValue, stage, asset.getMaturityDate(), asset.getCalcDate());
             }

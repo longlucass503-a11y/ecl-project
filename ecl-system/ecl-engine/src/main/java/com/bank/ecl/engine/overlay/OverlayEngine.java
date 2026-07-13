@@ -77,7 +77,7 @@ public class OverlayEngine implements EclEngine {
             }
 
             if (StageConditionEvaluator.evaluate(rule.getConditions(), a, null)) {
-                Double ratio = computeEquivalentRatio(rule, a.getTotalEad());
+                Double ratio = computeEquivalentRatio(rule, a);
                 // FIXED 类型且 EAD <= 0 时不选此规则
                 if (ratio == null) continue;
 
@@ -94,15 +94,16 @@ public class OverlayEngine implements EclEngine {
 
         double overlay = 0.0;
         if (bestRule != null) {
-            overlay = computeOverlay(bestRule, a.getTotalEad());
+            overlay = computeOverlay(bestRule, a);
             a.setSelectedOverlayId(bestRule.getRuleId());
         }
         a.setOverlayAmount(overlay);
         a.setEclFinal(ecl + overlay);
     }
 
-    private Double computeEquivalentRatio(OverlayRuleEntity rule, double ead) {
+    private Double computeEquivalentRatio(OverlayRuleEntity rule, AssetInput a) {
         double val = rule.getAdjustmentValue() != null ? rule.getAdjustmentValue().doubleValue() : 0.0;
+        double ead = a.getTotalEad();
         return switch (rule.getAdjustmentType()) {
             case "ADDBP" -> val / 10000.0;
             case "PERCENTAGE" -> val;
@@ -111,15 +112,43 @@ public class OverlayEngine implements EclEngine {
         };
     }
 
-    private double computeOverlay(OverlayRuleEntity rule, double ead) {
+    private double computeOverlay(OverlayRuleEntity rule, AssetInput a) {
         double val = rule.getAdjustmentValue() != null ? rule.getAdjustmentValue().doubleValue() : 0.0;
-        return switch (rule.getAdjustmentType()) {
-            case "ADDBP" -> ead * (val / 10000.0);
-            case "PERCENTAGE" -> ead * val;
-            case "FIXED" -> val;
-            default -> 0.0;
-        };
+        String type = rule.getAdjustmentType();
+        String target = rule.getOverlayType() != null ? rule.getOverlayType() : "ECL";
+
+        double ead = a.getTotalEad();
+        double lgd = a.getLgdValue();
+        double ecl = a.getEclValue();
+
+        if ("FIXED".equals(type)) {
+            return val;
+        }
+
+        if ("PERCENTAGE".equals(type)) {
+            return ecl * val;
+        }
+
+        if ("ADDBP".equals(type)) {
+            double bps = val / 10000.0;
+            return switch (target) {
+                case "PD"  -> ead * bps * lgd;
+                case "LGD" -> ead * getEffectivePd(a) * bps;
+                case "EAD" -> ead * bps * getEffectivePd(a) * lgd;
+                default    -> ead * bps;
+            };
+        }
+
+        return 0.0;
     }
+
+    private double getEffectivePd(AssetInput a) {
+        double ead = a.getTotalEad();
+        double lgd = a.getLgdValue();
+        if (ead == 0 || lgd == 0) return 0;
+        return a.getEclValue() / (lgd * ead);
+    }
+
 
     private Map<String, List<OverlayRuleEntity>> loadRulesByGroup(String schemeId) {
         List<OverlayRuleEntity> rules = overlayRuleMapper.selectList(

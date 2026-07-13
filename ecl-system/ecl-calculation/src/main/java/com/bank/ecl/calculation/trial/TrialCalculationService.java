@@ -265,7 +265,10 @@ public class TrialCalculationService {
                 metric("逾期天数", nvl(a.getOverdueDays())),
                 metric("是否不良 (is_npl)", nvl(a.getIsNpl())),
                 metric("正常连续天数", nvl(a.getNormalConsecutiveDays())),
-                metric("CRR 评级", nvl(a.getCrrRating())),
+                metric("上期阶段", a.getLastStage() != null ? a.getLastStage().getLabel() : "-"),
+                metric("上年 CRR", nvl(a.getCrrIntLastYear())),
+                metric("本年 CRR", nvl(a.getCrrIntThisYear() != null ? a.getCrrIntThisYear() : a.getCrrRating())),
+                metric("评级下降", computeRatingDrop(a)),
                 metric("五级分类", nvl(a.getFiveCategory())),
                 metric("违约标识", a.getDefaultFlag() != null && a.getDefaultFlag() ? "是" : "否"),
                 metric("其他风险信息", nvl(a.getOtherRiskInfo()))));
@@ -400,6 +403,27 @@ public class TrialCalculationService {
     }
     private TrialMetricVO metric(String label, String value) { return new TrialMetricVO(label, value, null); }
     private String nvl(Object v) { return v != null ? v.toString() : "-"; }
+
+    private String computeRatingDrop(AssetInput a) {
+        String last = a.getCrrIntLastYear();
+        String curr = a.getCrrIntThisYear();
+        if (last == null || curr == null) return "-";
+        Integer lastRank = parseCrrRank(last);
+        Integer currRank = parseCrrRank(curr);
+        if (lastRank == null || currRank == null) return "-";
+        int drop = currRank - lastRank;
+        if (drop <= 0) return "无";
+        return "降" + drop + "级";
+    }
+
+    private Integer parseCrrRank(String rating) {
+        if (rating == null || rating.isBlank()) return null;
+        String trimmed = rating.trim();
+        if (trimmed.matches("(?i)CRR\\d+")) {
+            return Integer.parseInt(trimmed.replaceAll("(?i)CRR", ""));
+        }
+        return null;
+    }
     private String formatMoney(double v) {
         return "¥" + BigDecimal.valueOf(v).setScale(2, RoundingMode.HALF_UP).toPlainString();
     }

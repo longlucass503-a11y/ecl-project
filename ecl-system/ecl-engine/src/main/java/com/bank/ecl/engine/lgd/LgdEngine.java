@@ -96,44 +96,80 @@ public class LgdEngine implements EclEngine {
                 .mapToDouble(a -> a.getTotalEad())
                 .sum();
 
-        // Calculate collateral net value
-        double collateralNetValue = 0.0;
+        // Calculate each collateral's recognized net value and corresponding LGD
+        AssetInput firstAsset = poolAssets.get(0);
+        String groupId = firstAsset.getGroupId();
+
+        List<double[]> collValues = new ArrayList<>(); // [netValue, lgd]
         if (collaterals != null) {
             for (CollateralInput coll : collaterals) {
                 if (coll == null || coll.getAppraisalValue() == null) continue;
                 double appVal = coll.getAppraisalValue().doubleValue();
 
-                // Find discount rate by (collateralCategory, collateralType)
-                String discountKey = nullSafeKey(coll.getCollateralCategory(), coll.getCollateralType());
-                double discountRate = discountCache.getOrDefault(discountKey, 0.0);
+                // Discount key: use collateralType (MORTGAGE/PLEDGE) as both category and type
+                // DB stores discount by "MORTGAGE|MORTGAGE", not "不动产|MORTGAGE"
+                String collType = coll.getCollateralType();
+                String discountKey = nullSafeKey(collType, collType);
+                double discountRate = discountCache.getOrDefault(discountKey, 0.0); // 认可率,直接乘
 
                 // Find depreciation rate by (collateralType, yearOffset=0)
-                String depKey = nullSafeKey(coll.getCollateralType(), 0);
+                String depKey = nullSafeKey(collType, 0);
                 double depreciationRate = depreciationCache.getOrDefault(depKey, 0.0);
 
-                double netValue = appVal * (1 + depreciationRate) * (1 - discountRate);
-                collateralNetValue += netValue;
+                // 公式: 评估价值 × (1 + 折旧率) × 折价认可率
+                // 折旧率是负数(减值),1+折旧率<1; 折扣率是认可率,直接乘
+                double netValue = appVal * (1 + depreciationRate) * discountRate;
+
+                // Look up LGD for this collateral type within the pool's group
+                double collLgd = lookupLgdByType(groupId, collType, curveCache, defaultLgd);
+
+                collValues.add(new double[]{netValue, collLgd});
             }
         }
 
-        double eadCovered = Math.min(collateralNetValue, eadTotal);
-        double eadUncovered = eadTotal - eadCovered;
+        // Sort collaterals by LGD ascending (best collateral = lowest LGD covers first)
+        collValues.sort((a, b) -> Double.compare(a[1], b[1]));
 
-        // Look up LGD for the uncovered portion using the first asset's group as representative
-        AssetInput firstAsset = poolAssets.get(0);
-        double lgdUncovered = lookupLgdForGroup(firstAsset, curveCache, defaultLgd);
+        // Allocate: each collateral covers part of EAD at its own LGD
+        double remainingEad = eadTotal;
+        double weightedLgdSum = 0.0;
+        double totalCovered = 0.0;
+        StringBuilder allocationDetail = new StringBuilder();
+
+        for (int i = 0; i < collValues.size(); i++) {
+            double[] cv = collValues.get(i);
+            double netValue = cv[0];
+            double collLgd = cv[1];
+            double coverAmount = Math.min(netValue, remainingEad);
+            if (coverAmount <= 0) continue;
+            weightedLgdSum += coverAmount * collLgd;
+            totalCovered += coverAmount;
+            remainingEad -= coverAmount;
+            if (i > 0) allocationDetail.append(", ");
+            allocationDetail.append(String.format("tranche%d:covered=%.0f,lgd=%.4f", i + 1, coverAmount, collLgd));
+        }
+
+        // Uncovered portion uses weighted average LGD across all pool assets (by EAD)
+        double weightedLgdUncovered = 0.0;
+        for (AssetInput a : poolAssets) {
+            double assetLgd = lookupLgdForGroup(a, curveCache, defaultLgd);
+            weightedLgdUncovered += a.getTotalEad() * assetLgd;
+        }
+        double lgdUncovered = eadTotal > 0 ? weightedLgdUncovered / eadTotal : defaultLgd;
+        double uncovered = Math.max(0, remainingEad);
+        weightedLgdSum += uncovered * lgdUncovered;
 
         double lgdPool;
         if (eadTotal > 0) {
-            lgdPool = (eadUncovered * lgdUncovered + eadCovered * lgdFloor) / eadTotal;
+            lgdPool = weightedLgdSum / eadTotal;
         } else {
             lgdPool = lgdUncovered;
         }
 
-        // Build JSON detail string
+        // Build JSON detail with allocation info
         String lgdDetails = String.format(
-                "{\"poolId\":\"%s\",\"eadTotal\":%.2f,\"collateralNetValue\":%.2f,\"eadCovered\":%.2f,\"eadUncovered\":%.2f,\"lgdPool\":%.4f}",
-                poolId, eadTotal, collateralNetValue, eadCovered, eadUncovered, lgdPool);
+                "{\"poolId\":\"%s\",\"eadTotal\":%.2f,\"totalCovered\":%.2f,\"uncovered\":%.2f,\"lgdUncovered\":%.4f,\"lgdPool\":%.4f,\"allocation\":\"%s\"}",
+                poolId, eadTotal, totalCovered, uncovered, lgdUncovered, lgdPool, allocationDetail.toString());
 
         // Set LGD for every asset in the pool
         for (AssetInput a : poolAssets) {
@@ -141,13 +177,25 @@ public class LgdEngine implements EclEngine {
             a.setLgdDetails(lgdDetails);
         }
 
-        log.info("[6.5 LGD] pool={} eadTotal={} collNetValue={} eadCovered={} eadUncovered={} lgdPool={}",
-                poolId, eadTotal, collateralNetValue, eadCovered, eadUncovered, lgdPool);
+        log.info("[6.5 LGD] pool={} eadTotal={} totalCovered={} uncovered={} lgdUncovered={} lgdPool={}",
+                poolId, eadTotal, totalCovered, uncovered, lgdUncovered, lgdPool);
     }
+
 
     private void processAsset(AssetInput a, Map<String, Double> cache, double defaultLgd) {
         double lgd = lookupLgdForGroup(a, cache, defaultLgd);
         a.setLgdValue(lgd);
+    }
+
+    private double lookupLgdByType(String groupId, String collType, Map<String, Double> cache, double defaultLgd) {
+        // Same key format as lookupLgdForGroup but with explicit collateral type
+        // Key: groupId|collateralType|  (ignoring productType)
+        String key = groupId + "|" + collType + "|";
+        Double lgd = cache.get(key);
+        if (lgd == null) {
+            lgd = defaultLgd;
+        }
+        return lgd;
     }
 
     private double lookupLgdForGroup(AssetInput a, Map<String, Double> cache, double defaultLgd) {
