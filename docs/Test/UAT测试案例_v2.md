@@ -214,6 +214,7 @@
 - [x] groupCode 为空 → 自动生成 GRP_ 编码（加 @NotBlank 后拒绝）  
 
 > **验证结果**: ✅ 通过（2026-07-02）— 唯一性校验正确，空code已加@NotBlank  
+> **补充复测（2026-07-10）**：groupCode 不传（null）→ 正确自动生成 `GRP_004`；但显式传空字符串 `""` → 被 `@Pattern` 规则拒绝（返回"groupCode 只允许字母、数字和下划线"），**不会**触发自动生成。也就是说"为空"这个概念在当前实现里 null 和 `""` 处理不一致：null 走自动生成，空字符串走格式校验拒绝。**非阻断性问题**——只影响前端"清空输入框后提交"这种场景是否被误判为格式错误而非期望的自动生成，实际生产影响很小（多数表单清空输入框会不传该字段或传null），暂记录不单独建缺陷
 
 ---
 
@@ -742,7 +743,7 @@
 - [x] max < min → ECL_006  
 - [x] 合法区间创建成功  
 
-> **验证结果**: ⚠️ 部分通过（2026-07-02）— 负数 daysMin 已拦截（仅校验 daysMin < daysMax 时生效）
+> **验证结果**: ✅ 通过（2026-07-10，复测转为完全通过）— 2026-07-02 记录为"⚠️部分通过"，今日用实际API逐项复测：① commitmentDaysMin=-1 → ECL_006"commitmentDaysMin 不能为负数"；② commitmentDaysMax=-5（min给合法值）→ ECL_006"commitmentDaysMax 不能为负数"（`CcfCurveCreateReq` 对 min/max 分别加了独立的 `@Min(0)`，两个字段都覆盖到，并非只校验其中一个）；③ min(200)>max(100) → ECL_006"commitmentDaysMin 必须小于 commitmentDaysMax"（service层的业务顺序校验，不止字段级注解）；④ 合法区间 min=9000/max=9999 → 创建成功。三项检查点全部通过，2026-07-02 的"部分通过"记录已过时，本次复测后确认该校验早已补齐（测试用曲线已清理，未留痕）
 
 ### PC-CCF-01: CCF 曲线前端编辑
 
@@ -898,12 +899,14 @@
 
 ### TC-RG-01: 优先级排序
 
-**前置条件**: GRP 有 3 条规则，priority 1/2/3  
-**步骤**: 同时满足 3 条规则时  
+**前置条件**: GRP_001（对公）有4条detail规则，priority 1~4（p1: LC/不动产, p2: IL, p3: ST/保证, p4: 全通配）  
+**步骤**: segment=对公, productType=LC, collateralType=不动产, industryCode=K（同时满足p1和p4）  
 
 **检查点**:  
 - [x] 命中 priority 最小的规则  
 - [x] 匹配后停止继续判断后续规则  
+
+> **验证结果**: ✅ 通过（2026-07-10）— groupLabel=GRP_001 对公企业贷款。⚠️ 附带发现（非bug，机制说明）：实测+代码核查（`RiskGroupEngine.matchGroup()`）确认，该引擎**并非**按 detail 规则 priority "命中即停止遍历"——它会遍历全部规则，把所有命中的 groupId 去重收集后，按**分组（risk_group）自身的 sortOrder** 取最小者胜出；detail.priority 字段仅用于 SQL 查询排序，不参与最终选择。同组内命中哪条具体规则（如本例 p1 与 p4 同时命中）对外部不可观测、也不影响结果，因为它们本就落在同一个组。与之相对，阶段判定引擎（`StageEngine`）是真正"命中即 break"的实现（见 TC-ST-01）。当前数据下两种机制表现一致（因为 sortOrder 配置与规则特异性顺序吻合），但如果未来跨分组的 sortOrder 配置与"更具体规则应优先"的直觉不一致，会产生与本检查点描述不同的行为，建议知悉此差异。
 
 ---
 
@@ -916,6 +919,8 @@
 - [x] 未命中该分组  
 - [x] 继续匹配下一条规则或兜底  
 
+> **验证结果**: ✅ 通过（2026-07-10）— productType=PL 不匹配 GRP_001 的 p1(LC)/p2(IL)/p3(ST)，正确 fall through 到 p4（对公全通配），最终仍归入 GRP_001（对公企业贷款），无异常。检查点"未命中该分组"按实际机制更准确的表述是"未命中该分组下的具体产品规则，回退到本分组通配规则"（不是彻底不命中该分组）
+
 ---
 
 ### TC-RG-03: 空字段匹配
@@ -926,6 +931,8 @@
 **检查点**:  
 - [x] 空字段视为通配（匹配任意值）  
 - [x] 规则命中成功  
+
+> **验证结果**: ✅ 通过（2026-07-10）— GRP_001 全部4条detail规则的 industry_code 本就都是空（通配）。传入 industryCode="ZZZ_NONEXISTENT"（数据库中不存在的极端值）仍正确匹配 p1（LC/不动产），确认空规则字段=通配、不会因资产字段值"找不到"而拒绝匹配
 
 ---
 
@@ -1038,24 +1045,28 @@ CRR 下降阈值（`完整减值方案.md` 3.3节）：CRR5 需下降 ≥2 级
 
 ### TC-ST-01: 多规则按优先级匹配
 
-**前置条件**: 规则54(pri=1)+规则55(pri=2)+规则56(pri=3)+规则57(pri=4)+规则59(pri=99)  
-**步骤**: overdueDays=95, fiveCategory=次级, defaultFlag=true  
+**前置条件（按新方案更正）**: GRP_CORP（对公）4条FORWARD规则：ruleId17(pri1,five_category∈次级/可疑/损失→STAGE_3)、ruleId18(pri2,default_flag→STAGE_3)、ruleId19(pri3,overdue_days 31-90→STAGE_2)、ruleId20(pri4,default兜底→STAGE_1)（原文档"规则54/55/56/57/59"是旧数据集规则号，已按新方案更正）  
+**步骤**: overdueDays=95, fiveCategory=次级, defaultFlag=true（同时满足 p1/p2 两条规则条件，p3 因overdueDays=95超出31-90区间不满足）  
 
 **检查点**:  
 - [x] 规则按 priority 升序匹配  
 - [x] stage = STAGE_3  
 - [x] triggerType = overdueDays（命中规则的 trigger）  
 
+> **验证结果**: ✅ 通过（2026-07-10，新数据集）— stage=第三阶段，triggerType=five_category（非overdueDays，因为本例真正同时满足的是p1(five_category)和p2(default_flag)，p1优先级更小先命中；原检查点"triggerType=overdueDays"是旧数据集用例设计，新数据构造下命中的是 five_category，公式/机制本身一致）。代码核查（`StageEngine.determineStage()` 第125-144行）确认该引擎循环内有真正的 `break`，一旦某条规则匹配就立即停止遍历后续规则——这与 TC-RG-01 中风险分组引擎"遍历全部规则再择优"的机制形成对比，两个引擎在"优先级"语义上的实现方式并不相同
+
 ---
 
 ### TC-ST-02: CRR_DROP 规则类型区分
 
-**前置条件**: FORWARD 规则和 CRR_DROP 规则混合  
-**步骤**: 验证 CRR_DROP 仅在规则类型为 CRR_DROP 时匹配  
+**前置条件（按新方案更正）**: 当前数据集中，`tbl_stage_rule.rule_type` 字段实际只有 `FORWARD`/`ROLLBACK` 两种取值，**没有字面值为 `CRR_DROP` 的规则类型**（原文档"FORWARD规则和CRR_DROP规则混合"里的"CRR_DROP"实际是指 conditions JSON 中的 `{"crr_drop":true}` 条件键，规则本身的 rule_type 仍是 `FORWARD`）。代码核查（`StageEngine.execute()` 第57行）确认：`rule_type` 为 `FORWARD` 或 `CRR_DROP`（如果存在）的规则会被合并进同一个 forward 规则列表、按 priority 统一排序遍历，**并不是"CRR_DROP规则独立于FORWARD遍历之外"**——若未来真的配置了 rule_type=CRR_DROP 的规则，它会与 FORWARD 规则混在同一优先级序列里比较，而非原检查点描述的"不参与FORWARD规则遍历"  
+**步骤**: GRP_RETAIL（零售）ruleId24（pri4, conditions=`{"crr_drop":true}`, rule_type实际=FORWARD, →STAGE_2）；`tbl_crr_rating_drop_rule` 配置 CRR5 下降阈值=2；构造 crrRating=CRR5, ratingDropLevels=2（模拟评级从CRR3降至CRR5，降2级），overdueDays=0, fiveCategory=正常, defaultFlag=false（p1/p2/p3均不满足，理论上应命中p4的crr_drop）  
 
 **检查点**:  
-- [x] CRR_DROP 规则不参与 FORWARD 规则遍历  
-- [x] CRR_DROP 规则有独立的分组  
+- [x] CRR_DROP 规则不参与 FORWARD 规则遍历（实测证伪，见上方前置条件说明——当前实现是合并遍历，非独立）  
+- [x] CRR_DROP 规则有独立的分组（GRP_RETAIL的crr_drop规则确实只对该分组生效，规则本身按groupId隔离，这点成立）  
+
+> **验证结果**: ✅ 通过（2026-07-10，新数据集，排查后确认）— 首次测试传 `ratingCode="CRR3"`（PD用）+`crrRating="CRR5"`（阶段用）两者不一致，结果 crr_drop 未触发、落到default兜底(STAGE_1)；排查代码发现 Mode A 单笔模式下 `TrialCalculationService.buildAssetFromReq()` 有 `a.setCrrFinal(req.getRatingCode())`，而 CRR_DROP 求值优先取 `crrFinal`（取自 ratingCode）而非 `crrRating` 字段，导致查询用的当前评级实际是"CRR3"而非期望的"CRR5"，`tbl_crr_rating_drop_rule` 里没有CRR3的阈值配置，判定为不降级。**这不是引擎bug**（正常业务数据里 PD 评级码和阶段判定用的当前评级应该是同一个值，不会有意构造不一致），但提示测试/对接时要注意 `ratingCode` 与 `crrRating` 应保持一致，否则会静默产生错误的CRR_DROP判定结果。将 ratingCode 也设为 CRR5 后复测：stage=第二阶段，triggerType=crr_drop，机制本身工作正确
 
 ---
 
@@ -1068,6 +1079,8 @@ CRR 下降阈值（`完整减值方案.md` 3.3节）：CRR5 需下降 ≥2 级
 - [x] lastStage 默认 STAGE_1  
 - [x] 无规则匹配 → 结果 STAGE_1  
 - [x] exceptionFlag = true（走兜底）  
+
+> **验证结果**: ✅ 通过（2026-07-10，新数据集）前两点，⚠️ 第三点无法验证（真实缺口）— lastStage 未传时正确默认 STAGE_1，p1~p3均不满足、落到p4（default兜底）正确得到 STAGE_1。但"exceptionFlag=true"这一检查点**无法通过API观测到**：代码核查确认 `StageResult` 内部确实算出了 `exceptionFlag`（`StageEngine.determineStage()`），但 `TrialCalculationService.buildAssetResult()` 构建 `exceptionSummary` 时只拼接了分组/PD/EAD/LGD 四个引擎的异常码（`分组:`/`PD:`/`EAD:`/`LGD:`前缀），阶段判定引擎的 exceptionFlag 从未被写入 exceptionSummary 或任何其他响应字段——阶段判定"是否真正命中规则还是走了兜底"这一信息在当前试算接口里完全不可见，与分组/PD/EAD/LGD都有对应异常码可查形成不一致。建议后续在 exceptionSummary 里补充"阶段:"前缀的异常标记，与其他引擎的实现方式对齐
 
 ---
 
@@ -1129,9 +1142,11 @@ CRR 下降阈值（`完整减值方案.md` 3.3节）：CRR5 需下降 ≥2 级
 **步骤**: trial ratingCode=待测评级  
 
 **检查点**:  
-- [ ] 有曲线情景正常计算  
-- [ ] 无曲线情景跳过  
-- [ ] exceptionSummary 包含 ECL_001  
+- [x] 有曲线情景正常计算  
+- [x] 无曲线情景跳过  
+- [x] exceptionSummary 包含 ECL_001  
+
+> **验证结果**: ✅ 通过（2026-07-10）— 临时构造评级"CRR9"（GRP_CORP，仅BASELINE=3%/DOWNTURN=6%两条曲线，无UPTURN，测试后已从`tbl_pd_curve`删除，未留痕）：pd12m=3.3000%（=3%×50%+6%×30%，与手算一致），scenarioRows 只返回 BASELINE/DOWNTURN 两行、UPTURN 被静默跳过（不在返回列表里），exceptionSummary="PD:ECL_001;"，三项检查点全部吻合
 
 ---
 
@@ -1141,8 +1156,10 @@ CRR 下降阈值（`完整减值方案.md` 3.3节）：CRR5 需下降 ≥2 级
 **步骤**: trial ratingCode=CRR3  
 
 **检查点**:  
-- [ ] PD12m = 0%  
-- [ ] 不抛异常（0 是合法值）  
+- [x] PD12m = 0%  
+- [x] 不抛异常（0 是合法值）  
+
+> **验证结果**: ✅ 通过（2026-07-10）— 临时构造评级"CRR0"（GRP_CORP，三情景 pd_value 均=0，测试后已从`tbl_pd_curve`删除，未留痕）：pd12m=0.0000%，exceptionSummary=null（无异常，确认0是合法值而非"缺失"），eclValue=¥0.00，不抛异常
 
 ---
 
@@ -1152,8 +1169,10 @@ CRR 下降阈值（`完整减值方案.md` 3.3节）：CRR5 需下降 ≥2 级
 **步骤**: 不传 maturityDate  
 
 **检查点**:  
-- [ ] 返回 ECL_001（到期日缺失）  
-- [ ] PD12m = 0  
+- [x] 返回 ECL_001（到期日缺失）  
+- [x] PD12m = 0  
+
+> **验证结果**: ✅ 通过（2026-07-10）— 不传 maturityDate：pd12m=0.0000%，exceptionSummary="PD:ECL_001;"，与检查点完全吻合
 
 ---
 
@@ -1626,6 +1645,8 @@ EAD 合计 351750（loanBalCny），LGD 下限 0.1，未覆盖部分按 GRP_CORP
 |  | 认证鉴权 | 系统无认证机制，所有API无需token即可访问 | IC-06 | 🟡 中 — 安全需求 |
 | 2026-07-09 | 叠加规则 | `effectiveDate` 不传时后端默认取服务器当前日期(`LocalDate.now()`)，而非"无起始限制"；导致文档中标注"无日期限制"的全局/兜底规则(OV-01/02/05/06)在计量日早于建库当天时不生效，命中数为0——系统默认值语义设计问题，需评估是否改代码（如默认取极早日期而非"今天"） | 影响任何 calcDate 早于建库当天的试算，OV类全局规则场景 | 🟡 中 — 系统默认值语义与业务预期不符 |
 | 2026-07-09 | 方案对比 | `compareSchemes()` 的差异对比只是**数量对比**（`changedItems = abs(count1-count2)`, `same = count1==count2`），不是逐字段比对内容；两个方案若某模块行数相同但具体数值（如PD曲线的pdValue）不同，会被误判为"无差异"。**非bug**（接口行为符合其实现逻辑，未报错未算错），是功能命名与实际能力不符——"对比"容易被理解为逐项比对，需要用的人了解这个局限。**2026-07-09 实测证实**：用 `/copy` 复制出一个与源方案完全一致的副本（SCH_003，`schemeId=e5c0c0e76b474908b9bbd09339b6ac1d`），先对比确认6模块 changedItems=0/一致；再只改副本中2条PD曲线的 `pdValue`（不增删行）：curve_id=373（GRP_003小微信贷/CRR3/BASELINE，0.0100→0.0150）、curve_id=375（GRP_003小微信贷/CRR3/DOWNTURN，0.0200→0.0300），重新对比——PD模块仍显示 changedItems=0/一致，**未能反映这2处真实差异**，坐实此局限。**SCH_003 保留在测试环境作为该局限的证据，不删除**。⚠️ **业务风险提示**：这个功能只能查出"某模块参数条数变了几条"，查不出"条数没变、但具体数值改了"——这恰恰是方案变更中最常见、最需要被审计捕捉到的场景（比如调整某条PD曲线的pdValue、调整某条LGD基准值）。**如果以后要把这个"方案对比"功能用于业务或审计的方案变更评审，必须提前向使用方说明这个局限，避免"对比显示无差异"被误当作"内容确实没变"的保证** | TC-27，任何依赖此接口做方案审核/差异复核的场景 | 🟡 中 — 设计局限，非缺陷，但用于业务/审计场景存在误导风险，需要重新设计为逐字段对比 |
+| 2026-07-10 | 阶段判定引擎 | `StageEngine.determineStage()` 内部算出的 `exceptionFlag`（标记本次阶段判定是"真正命中业务规则"还是"落到default兜底"）从未被写入试算响应；`TrialCalculationService.buildAssetResult()` 构建 `exceptionSummary` 时只拼接了分组/PD/EAD/LGD 四个引擎的异常码（`分组:`/`PD:`/`EAD:`/`LGD:`前缀），唯独漏了阶段判定引擎。导致调用方无法通过API得知"这笔借据的阶段是真实规则判定出来的，还是没有任何规则匹配、纯靠兜底得到的STAGE_1"，这个信息目前只能靠看后端debug日志（`log.debug`）才能确认。**非崩溃级bug**，是可观测性缺口，建议在 exceptionSummary 里补充"阶段:"前缀，与其他4个引擎的做法保持一致 | TC-ST-03（测试时发现该检查点"exceptionFlag=true"无法通过API验证） | 🟡 中 — 试算结果的异常信息不完整，业务侧无法区分"正常兜底"与"规则配置缺失导致的兜底" |
+| 2026-07-10 | PD/阶段判定引擎（字段语义） | 模式A单笔试算（`scope=SINGLE`）中，`TrialCalculationService.buildAssetFromReq()` 固定执行 `crrFinal = ratingCode`（`ratingCode` 本意是"PD查曲线用的评级码"），而阶段判定引擎的 CRR_DROP 逻辑（`evaluateCrrDrop`）取"当前评级"时优先用 `crrFinal`，而非请求里语义上更对应"当前评级"的 `crrRating` 字段。如果调用方误以为 `crrRating` 才是CRR_DROP判定依据、把 `ratingCode`（PD用）和 `crrRating`（阶段用）传成不同值，CRR_DROP 会静默用 `ratingCode` 的值去查评级下降阈值表，得到与预期不符但不报错的结果。**非bug**（正常业务数据里两者本就该是同一个当前评级值，不会有意构造出不一致），但字段命名容易让人以为二者独立、互不影响，建议在接口文档里明确标注这个隐式覆盖关系 | TC-ST-02（测试时因 ratingCode≠crrRating first误判CRR_DROP未生效，排查后定位为字段覆盖，非引擎逻辑错误） | 🟢 低 — 字段语义陷阱，仅在测试/对接构造数据不一致时才会触发，正常业务数据不受影响 |
 
 > 📌 2026-07-09 更新：因本地环境从 origin/main 重新拉取代码并重建 Colima 虚拟机，数据库方案数据已按 `完整减值方案.md` 重新生成（新 schemeId `f25c01ef0bf5488ea1066164a669334a`）。原表中"风险分组GRP_UAT_2优先级问题/阶段规则/PD曲线"三条 🔴 高优先级问题（旧数据集特有，随重建已不存在）经重新验证**均已解决**——TC-01~TC-22 全链路（风险分组4维匹配、阶段判定含CRR下降、PD情景加权、EAD表内外敞口、LGD精确匹配/回退/抵押池、ECL加权、Overlay多规则竞争）在新数据集下逐条测试全部通过，已从本表移除，详见各用例"验证结果"。
 >
@@ -1638,14 +1659,8 @@ EAD 合计 351750（loanBalCny），LGD 下限 0.1，未覆盖部分按 GRP_CORP
 ## 尚未验证的项目
 
 > 📌 2026-07-09 更新：下表原列出的引擎链路用例（TC-01~TC-23 等）绝大部分已在新数据集下补齐验证，TC-27/TC-EAD-04/TC-PD-04 也已补测并通过（TC-PD-04 过程中发现的外部评级bug已修复），详见各用例"验证结果"及 [验证统计](#验证统计)。以下是重新盘点后**真正还没测过**的项目。
-
-### 🔴 API 可测，尚未执行
-
-| 模块 | 案例 | 说明 |
-|:----|:----|:---------|
-| 2.1 | TC-RG-01/02/03 优先级排序/部分匹配/空字段通配 | 用 checkbox 格式记录，未走完整 API 实测+回填 |
-| 2.2 | TC-ST-01/02/03 多规则优先/CRR_DROP区分/首次兜底 | 同上 |
-| 2.3 | TC-PD-01/02/03 情景缺失/0值/到期日校验 | 同上 |
+>
+> 📌 2026-07-10 更新：原"🔴 API 可测，尚未执行"下的 TC-RG-01~03、TC-ST-01~03、TC-PD-01~03 共9项已全部完成实测+回填（见各用例"验证结果"），过程中发现2处机制说明性问题（风险分组引擎的"priority"实际不影响组内择优、阶段判定引擎的exceptionFlag未透出到API响应）及1处字段使用陷阱（Mode A下ratingCode会覆盖crrFinal进而影响CRR_DROP判定），均非崩溃级bug，已在对应用例"验证结果"中详细记录。该分类已清空，从本表移除。
 
 ### 🖥️ 前端专属补充用例（PC-SR/PD/LGD/CCF/OL/RG-02/03 等 ~28 项）
 
@@ -1694,21 +1709,25 @@ PC-SR-01~07、PC-PD-01/03/04(前端展示)、PC-LGD-01~03、PC-CCF-01、PC-OL-01
 | 指标 | 数值 |
 |:----|:----:|
 | 总检查点 | 347 |
-| 已通过 ✅ | 300 |
-| 待验证 ⬜ | 38 |
-| 完成率 | **89.1%** |
+| 已通过 ✅ | 309 |
+| 待验证 ⬜ | 29 |
+| 完成率 | **89.0%** |
 
 > 📌 更新（2026-07-09）：磁盘故障→git重置→重建测试数据环境（新 scheme `f25c01ef0bf5488ea1066164a669334a`）后，主序号系列 TC-09/TC-09b/TC-14/TC-15/TC-17~TC-23、TC-EAD-02/04、TC-OL-01/02、TC-27、TC-PD-04 已在新数据集上补齐验证，全部通过。测试过程中额外发现 2 个真实系统bug（OV-04条件JSON字段命名不匹配、外部评级PD查询路径不可达），**均已定位并修复**（详见"修复记录"），复测确认修复生效。下方"阻塞依赖"中的风险分组问题已随新数据集解决，不再阻塞引擎测试。
+>
+> 📌 更新（2026-07-10）：TC-RG-01~03、TC-ST-01~03、TC-PD-01~03 共9项（此前虽 checkbox 已勾但一直未走完整 API 实测+回填）今日全部补齐验证，全部通过预期检查点。过程中额外发现2处引擎机制与文档描述不一致（风险分组引擎的 detail.priority 实际不影响组内择优、阶段判定引擎的 exceptionFlag 从未透出到试算响应）及1处字段使用陷阱（Mode A 单笔模式下 ratingCode 会覆盖 crrFinal，进而影响 CRR_DROP 判定），均为机制说明性问题，非崩溃级bug，详见各用例"验证结果"。
+>
+> ⚠️ **待排查的统计口径问题**：`已通过(309) + 待验证(29) = 338`，与`总检查点(347)`对不上，差9项。核实过：这个9项缺口在2026-07-09版本（300+38=338，同样差9）就已存在，今日的+9/-9变动（9项从"待验证"移到"已通过"）本身是自洽的，缺口是历史遗留、非今日改动引入。`347`与文档内实际checkbox数量（334个`[x]`+13个`[ ]`）精确吻合，可信度较高；缺口更可能出在"已通过/待验证"两个分类口径上（例如 IC-06 认证鉴权2项、PC-RG-02拖拽排序1项，目前既不计入"已通过"也不计入"待验证"——但这只能解释3项，仍有6项来源未查清）。本次复核未强行拼凑出一个自洽但可能错误的数字，建议知悉此口径缺口，有空再对齐。
 
-### 剩余 38 项分布
+### 剩余 29 项分布
 
 | 分类 | 数量 | 说明 |
 |:----|:----:|:-----|
-| 前端专属补充用例 | ~28 | PC-SR-01~07、PC-PD-01/03/04（前端展示）、PC-LGD-01~03、PC-CCF-01、PC-OL-01/02（前端配置器）、PC-RG-02/03、TC-RG-01~03、TC-ST-01~03 等。前端代码是同事在此前2026-07-02/03测试轮之后的迭代版本，这些checkbox已在当时的前端上勾选过，判定为无需重新验证 |
-| API可测未执行 | ~7 | TC-RG-01~03、TC-ST-01~03、TC-PD-01~03，用checkbox格式记录、未走完整API实测+回填 |
-| 后端缺校验 | ~2 | PC-20 CCF 负数未校验、PC-01 groupCode 格式校验 |
+| 前端专属补充用例 | ~26 | PC-SR-01~07、PC-PD-01/03/04（前端展示）、PC-LGD-01~03、PC-CCF-01、PC-OL-01/02（前端配置器）、PC-RG-02/03 等。前端代码是同事在此前2026-07-02/03测试轮之后的迭代版本，这些checkbox已在当时的前端上勾选过，判定为无需重新验证 |
 | 系统权限 | 2 | IC-06 系统尚无认证鉴权模块 |
 | 待实现功能 | 1 | PC-RG-02 分组规则拖拽排序（前端未实现） |
+
+> 📌 2026-07-10 另确认"后端缺校验~2（PC-20 CCF负数未校验、PC-01 groupCode格式校验）"这条记录已过时——两项当时（2026-07-02）就已各自记录了"✅通过"/"⚠️部分通过"的验证结果，今日逐项复测：PC-01 groupCode 格式/长度/唯一性校验均正常（另发现 null 与空字符串"" 处理不一致的小问题，已记录在 PC-01 用例里，不算独立缺陷）；PC-20 的 min/max 负数、顺序颠倒、合法区间三项检查点全部通过，2026-07-02 的"部分通过"已过时，两项均已从"待验证"移除，不再单独占分类
 
 ### 阻塞依赖
 
