@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useSearchParams, useOutletContext } from 'react-router-dom';
 import { schemeApi, type SchemeVO } from '../../api/scheme';
 import { riskGroupApi, type RiskGroupVO, type RiskGroupDetailVO } from '../../api/riskGroup';
+import { dictApi, type DictEntryVO } from '../../api/dict';
 import { PageHeader, Panel } from '../../components';
 
 const RiskGroupConfig: React.FC = () => {
@@ -24,10 +25,31 @@ const RiskGroupConfig: React.FC = () => {
   const [editingDetail, setEditingDetail] = useState<RiskGroupDetailVO | null>(null);
   const [groupForm] = Form.useForm();
   const [detailForm] = Form.useForm();
+  const [dictSegment, setDictSegment] = useState<DictEntryVO[]>([]);
+  const [dictProductType, setDictProductType] = useState<DictEntryVO[]>([]);
+  const [dictIndustry, setDictIndustry] = useState<DictEntryVO[]>([]);
+  const [dictCollateral, setDictCollateral] = useState<DictEntryVO[]>([]);
 
   useEffect(() => {
     schemeApi.list().then((res) =>
       setSchemes((res.data as any)?.data || res.data || []));
+  }, []);
+
+  const loadDictOptions = useCallback(async (schemeId: string) => {
+    try {
+      const [segRes, prodRes, indRes, colRes] = await Promise.all([
+        dictApi.getEffectiveEntries(schemeId, 'CUSTOMER_TYPE'),
+        dictApi.getEffectiveEntries(schemeId, 'PRODUCT_TYPE'),
+        dictApi.getEffectiveEntries(schemeId, 'INDUSTRY'),
+        dictApi.getEffectiveEntries(schemeId, 'COLLATERAL_TYPE'),
+      ]);
+      setDictSegment((segRes.data as any)?.data || segRes.data || []);
+      setDictProductType((prodRes.data as any)?.data || prodRes.data || []);
+      setDictIndustry((indRes.data as any)?.data || indRes.data || []);
+      setDictCollateral((colRes.data as any)?.data || colRes.data || []);
+    } catch (err) {
+      console.error('加载字典选项失败', err);
+    }
   }, []);
 
   const loadGroups = useCallback(async () => {
@@ -43,6 +65,12 @@ const RiskGroupConfig: React.FC = () => {
   useEffect(() => { loadGroups(); }, [loadGroups]);
 
   useEffect(() => {
+    if (selectedSchemeId) {
+      loadDictOptions(selectedSchemeId);
+    }
+  }, [selectedSchemeId]);
+
+  useEffect(() => {
     if (groups.length > 0 && !selectedGroupId) {
       setSelectedGroupId(groups[0].groupId);
     }
@@ -56,18 +84,27 @@ const RiskGroupConfig: React.FC = () => {
   }, [selectedGroupId, groups]);
 
   const handleSaveGroup = async () => {
-    const values = await groupForm.validateFields();
-    if (editingGroup) {
-      await riskGroupApi.update(editingGroup.groupId, { ...values, schemeId: selectedSchemeId });
-      message.success('分组更新成功');
-    } else {
-      await riskGroupApi.create({ ...values, schemeId: selectedSchemeId });
-      message.success('分组创建成功');
+    try {
+      const values = await groupForm.validateFields();
+      if (editingGroup) {
+        await riskGroupApi.update(editingGroup.groupId, { ...values, schemeId: selectedSchemeId });
+        message.success('分组更新成功');
+      } else {
+        const { groupCode: _, ...createValues } = values;
+        await riskGroupApi.create({ ...createValues, schemeId: selectedSchemeId });
+        message.success('分组创建成功');
+      }
+      setGroupModalOpen(false);
+      setEditingGroup(null);
+      groupForm.resetFields();
+      loadGroups();
+    } catch (err: any) {
+      if (err?.errorFields) {
+        // form validation error, antd will show field errors
+        return;
+      }
+      message.error(err?.message || '操作失败');
     }
-    setGroupModalOpen(false);
-    setEditingGroup(null);
-    groupForm.resetFields();
-    loadGroups();
   };
 
   const handleDeleteGroup = (groupId: string) => {
@@ -250,9 +287,15 @@ const RiskGroupConfig: React.FC = () => {
         onOk={handleSaveGroup} onCancel={() => { setGroupModalOpen(false); groupForm.resetFields(); }}
         okText="保存" cancelText="取消">
         <Form form={groupForm} layout="vertical">
-          <Form.Item name="groupCode" label="分组编码" rules={[{ required: true }]}>
-            <Input placeholder="如：GRP_001" />
-          </Form.Item>
+          {editingGroup ? (
+            <Form.Item name="groupCode" label="分组编码">
+              <Input disabled />
+            </Form.Item>
+          ) : (
+            <Form.Item name="groupCode" hidden>
+              <Input />
+            </Form.Item>
+          )}
           <Form.Item name="groupName" label="分组名称" rules={[{ required: true }]}>
             <Input placeholder="如：政府贷款" />
           </Form.Item>
@@ -274,10 +317,22 @@ const RiskGroupConfig: React.FC = () => {
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
-            <Form.Item name="segment" label="segment"><Input /></Form.Item>
-            <Form.Item name="productType" label="产品类型"><Input /></Form.Item>
-            <Form.Item name="industryCode" label="行业代码"><Input /></Form.Item>
-            <Form.Item name="collateralType" label="担保类型"><Input /></Form.Item>
+            <Form.Item name="segment" label="segment">
+              <Select placeholder="不限制（通配）" allowClear showSearch
+                options={dictSegment.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
+            </Form.Item>
+            <Form.Item name="productType" label="产品类型">
+              <Select placeholder="不限制（通配）" allowClear showSearch
+                options={dictProductType.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
+            </Form.Item>
+            <Form.Item name="industryCode" label="行业代码">
+              <Select placeholder="不限制（通配）" allowClear showSearch
+                options={dictIndustry.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
+            </Form.Item>
+            <Form.Item name="collateralType" label="担保类型">
+              <Select placeholder="不限制（通配）" allowClear showSearch
+                options={dictCollateral.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
+            </Form.Item>
           </div>
           <Typography.Text type="secondary">至少填写一个匹配维度</Typography.Text>
         </Form>

@@ -141,6 +141,11 @@ export function parseTrialExcel(file: File): Promise<ExcelParseResult> {
                     value = `${yyyy}-${mm}-${dd}`;
                   }
                   value = String(value).trim();
+                  // 剥离时间部分，如 "2026-07-10 0:00:00" → "2026-07-10"
+                  const dateMatch = (value as string).match(/^(\d{4}-\d{2}-\d{2})/);
+                  if (dateMatch) {
+                    value = dateMatch[1];
+                  }
                 } else {
                   value = String(value).trim();
                 }

@@ -121,7 +121,8 @@ public class StageConditionEvaluator {
                     return false;
                 }
             } else if ("crr_drop".equals(key)) {
-                if (!evaluateCrrDrop(asset, crrDropMap)) {
+                // FIX: pass expectedValue so crr_drop:true actually evaluates
+                if (!evaluateCrrDrop(asset, crrDropMap, value)) {
                     return false;
                 }
             } else if ("default".equals(key) && Boolean.TRUE.equals(value)) {
@@ -130,7 +131,9 @@ public class StageConditionEvaluator {
             } else if (value instanceof Map) {
                 // 嵌套 JSON 对象 → 范围匹配或枚举匹配
                 Map<String, Object> inner = (Map<String, Object>) value;
-                if (inner.containsKey("min") || inner.containsKey("max")) {
+                if (inner.containsKey("min") || inner.containsKey("max")
+                        || inner.containsKey("gte") || inner.containsKey("gt")
+                        || inner.containsKey("lte") || inner.containsKey("lt")) {
                     if (!evaluateRange(key, inner, asset)) {
                         return false;
                     }
@@ -189,7 +192,7 @@ public class StageConditionEvaluator {
         String operator = nvl(toStringValue(condition.get("operator")));
         Object value = condition.get("value");
 
-        return switch (type) {
+        boolean result = switch (type) {
             case "逾期天数" -> compareNumber(asset.getOverdueDays(), operator, value);
             case "五级分类" -> evaluateEditorIn(asset.getFiveCategory(), operator, condition.get("values"));
             case "CRR 评级下降" -> evaluateCrrDrop(asset, crrDropMap, value);
@@ -197,8 +200,25 @@ public class StageConditionEvaluator {
             case "逾期天数范围" -> evaluateRangeCondition(asset.getOverdueDays(), condition);
             case "舆情事件" -> evaluateTextEvidence(asset.getOtherRiskInfo(), value)
                     || evaluateTextEvidence(asset.getMediaSentiment(), value);
-            default -> false;
+            case "行业代码" -> evaluateEditorIn(asset.getIndustryCode(), operator, condition.get("values"));
+            case "产品类型" -> {
+                if ("in".equals(operator) || "not_in".equals(operator)) {
+                    yield evaluateEditorIn(asset.getProductType(), operator, condition.get("values"));
+                }
+                yield evaluateStringEquals(asset.getProductType(), operator, condition.get("value"));
+            }
+            case "客户名称" -> evaluateTextEvidence(asset.getCustomerName(), value);
+            case "客户名称列表" -> evaluateEditorIn(asset.getCustomerName(), operator, condition.get("values"));
+            case "EAD均值比" -> compareDouble(asset.getTotalEad(), asset.getBatchEadAvg(), operator, value);
+            default -> {
+                log.warn("[StageCondition] unknown type='{}' operator='{}' value='{}' assetId={}",
+                        type, operator, value, asset.getAssetId());
+                yield false;
+            }
         };
+        log.debug("[StageCondition] type='{}' operator='{}' value='{}' assetId={} → {}",
+                type, operator, value, asset.getAssetId(), result);
+        return result;
     }
 
     private static boolean compareNumber(Integer actual, String operator, Object expectedValue) {
@@ -214,6 +234,27 @@ public class StageConditionEvaluator {
             case "gte" -> actual >= expected;
             default -> false;
         };
+    }
+
+    private static boolean compareDouble(double actual, double batchAvg, String operator, Object expectedValue) {
+        if (expectedValue == null) return false;
+        double ratio = batchAvg > 0 ? actual / batchAvg : 0;
+        double expected = toDouble(expectedValue);
+        return switch (operator) {
+            case "gt" -> ratio > expected;
+            case "gte" -> ratio >= expected;
+            case "lt" -> ratio < expected;
+            case "lte" -> ratio <= expected;
+            case "eq" -> Math.abs(ratio - expected) < 0.0001;
+            default -> false;
+        };
+    }
+
+    private static boolean evaluateStringEquals(String actual, String operator, Object expectedValue) {
+        if (actual == null || expectedValue == null) return false;
+        if ("eq".equals(operator)) return actual.equals(expectedValue.toString());
+        if ("ne".equals(operator)) return !actual.equals(expectedValue.toString());
+        return false;
     }
 
     private static boolean evaluateRangeCondition(Integer actual, Map<String, Object> condition) {
@@ -237,8 +278,9 @@ public class StageConditionEvaluator {
     }
 
     private static boolean evaluateDefaultFlag(AssetInput asset, Object expectedValue) {
-        if (expectedValue == null) {
-            return false;
+        // 空值或空字符串 → 表示"不关心此字段"，跳过此条件（即匹配所有）
+        if (expectedValue == null || expectedValue.toString().isBlank()) {
+            return true;
         }
         boolean expected = expectedValue instanceof Boolean b
                 ? b
@@ -366,6 +408,10 @@ public class StageConditionEvaluator {
     private static boolean evaluateCrrDrop(AssetInput asset,
                                            Map<String, Integer> crrDropMap,
                                            Object expectedValue) {
+        // 空值或空字符串 → 表示"不关心此字段"，跳过此条件
+        if (expectedValue == null || expectedValue.toString().isBlank()) {
+            return true;
+        }
         boolean expectDrop = expectedValue == null
                 || !Boolean.FALSE.equals(expectedValue)
                 || !"否".equals(expectedValue.toString());
@@ -514,6 +560,12 @@ public class StageConditionEvaluator {
             }
         }
         return result.toString();
+    }
+
+    private static double toDouble(Object value) {
+        if (value instanceof Number n) return n.doubleValue();
+        try { return Double.parseDouble(value.toString()); }
+        catch (NumberFormatException e) { return 0.0; }
     }
 
     private static int toInt(Object value) {

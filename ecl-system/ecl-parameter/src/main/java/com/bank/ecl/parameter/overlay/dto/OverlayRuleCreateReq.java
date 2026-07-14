@@ -3,6 +3,7 @@ package com.bank.ecl.parameter.overlay.dto;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -14,7 +15,6 @@ public class OverlayRuleCreateReq {
     @NotBlank(message = "schemeId 不能为空")
     private String schemeId;
 
-    @NotBlank(message = "groupId 不能为空")
     private String groupId;
 
     @NotBlank(message = "overlayType 不能为空")
@@ -23,6 +23,7 @@ public class OverlayRuleCreateReq {
     private String adjustmentTarget = "ECL_FINAL";
 
     @NotBlank(message = "adjustmentType 不能为空")
+    @Pattern(regexp = "^(ADDBP|PERCENTAGE|FIXED)$", message = "adjustmentType 仅允许 ADDBP / PERCENTAGE / FIXED")
     private String adjustmentType;
 
     @NotNull(message = "adjustmentValue 不能为空")

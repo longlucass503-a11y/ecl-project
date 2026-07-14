@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import SchemeList from '../pages/scheme/SchemeList';
 import SchemeOverview from '../pages/scheme/SchemeOverview';
+import SchemeDictConfig from '../pages/dict/SchemeDictConfig';
 import SchemeCompare from '../pages/scheme/SchemeCompare';
 import RiskGroupConfig from '../pages/parameter/RiskGroupConfig';
 import StageConfig from '../pages/parameter/StageConfig';
@@ -36,6 +37,7 @@ const router = createBrowserRouter([
       { path: 'parameters/ccf', element: <CcfConfig /> },
       { path: 'parameters/lgd', element: <LgdConfig /> },
       { path: 'parameters/overlay', element: <OverlayConfig /> },
+      { path: 'parameters/dict', element: <SchemeDictConfig /> },
       { path: 'jobs', element: <JobsMonitor /> },
       { path: 'trial', element: <TrialCenter /> },
     ],

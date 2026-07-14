@@ -20,6 +20,7 @@ const schemes = [
     discountRate: 4.35,
     defaultCcf: 1,
     defaultLgd: 0.45,
+    lgdFloor: 0.1,
     createdBy: '张工',
     createdAt: '2026-05-25 14:32',
     description: '基于 Q2 调整 PD 和 LGD',
@@ -36,6 +37,7 @@ const schemes = [
     discountRate: 4.35,
     defaultCcf: 1,
     defaultLgd: 0.45,
+    lgdFloor: 0.1,
     createdBy: '张工',
     createdAt: '2026-06-19 10:00',
     description: '试算 PD 新模型',
@@ -144,8 +146,6 @@ const stageRules = [
     jsonCondition: JSON.stringify({
       logic: 'AND',
       conditions: [
-        { type: '还款状态', operator: 'eq', value: '正常' },
-        { type: '逾期状态', operator: 'eq', value: '已消除' },
       ],
     }),
   },
@@ -266,6 +266,14 @@ function payloadFor(config: InternalAxiosRequestConfig): unknown {
         matchedRules: overlayRules,
       };
     }
+    if (method === 'put' && url.includes('/default-params')) {
+      const body = readBody(config.data);
+      const sid = url.split('/').at(-2);
+      const target = one(schemes, 'schemeId', sid);
+      if (target) Object.assign(target, body);
+      return { ...target, ...body };
+    }
+
     if (method === 'post') {
       if (/\/v1\/schemes\/[^/]+\/copy$/.test(url)) {
         const sourceId = url.split('/').at(-2);

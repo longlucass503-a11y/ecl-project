@@ -2,6 +2,7 @@ package com.bank.ecl.parameter.scheme;
 
 import com.bank.ecl.parameter.scheme.dto.SchemeCreateReq;
 import com.bank.ecl.parameter.scheme.dto.SchemeDiffVO;
+import com.bank.ecl.parameter.scheme.dto.SchemeDefaultParamReq;
 import com.bank.ecl.parameter.scheme.dto.SchemeVO;
 
 import java.util.List;
@@ -22,6 +23,7 @@ public interface EclSchemeService {
     List<SchemeDiffVO> compareSchemes(String schemeId1, String schemeId2);
 
     SchemeVO updateScheme(String schemeId, SchemeCreateReq req);
+    SchemeVO updateDefaultParams(String schemeId, SchemeDefaultParamReq req);
 
     void deleteScheme(String schemeId);
 }

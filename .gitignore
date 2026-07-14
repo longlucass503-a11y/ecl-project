@@ -14,3 +14,4 @@ dist/
 *.pid
 .superpowers/
 ecl-system/logs/
+.gstack/

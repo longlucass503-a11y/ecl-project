@@ -4,9 +4,12 @@ import com.bank.ecl.common.model.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.stream.Collectors;
 
 /**
  * Global exception handler that converts EclException and other exceptions
@@ -23,6 +26,16 @@ public class GlobalExceptionHandler {
         log.warn("ECL business exception: code={}, severity={}, detail={}",
                 ex.getErrorCode(), ex.getSeverity(), ex.getMessage());
         return Result.error(ex.getErrorCode().name(), ex.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<?> handleValidation(MethodArgumentNotValidException ex) {
+        String msg = ex.getBindingResult().getFieldErrors().stream()
+            .map(e -> e.getField() + ": " + e.getDefaultMessage())
+            .collect(Collectors.joining("; "));
+        log.warn("Validation failed: {}", msg);
+        return Result.error("ECL_006", "参数校验失败: " + msg);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

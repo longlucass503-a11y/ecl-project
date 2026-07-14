@@ -103,6 +103,8 @@ public class AssetInput {
     /** 匹配到的分组 ID */
     private String groupId;
 
+    /** 分组编码（如 GRP_002、GRP_003） */
+    private String groupCode;
     /** 分组名称 */
     private String groupName;
 
@@ -228,4 +230,7 @@ public class AssetInput {
 
     /** 选中规则 ID */
     private Long selectedOverlayId;
+
+    /** 同批次 EAD 均值（叠加引擎预计算，用于 EAD均值比 条件匹配） */
+    private double batchEadAvg;
 }

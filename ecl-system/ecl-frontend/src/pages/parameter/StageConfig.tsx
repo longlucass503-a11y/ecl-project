@@ -10,11 +10,9 @@ import {
   type RatingDowngradeRuleVO,
 } from '../../api/stage';
 import { PageHeader, Panel, GroupSelector } from '../../components';
-
 /* ═══════════════════════════════════════════════════
    Condition types & helpers
    ═══════════════════════════════════════════════════ */
-
 interface ConditionItem {
   type: string;
   operator: string;
@@ -25,30 +23,24 @@ interface ConditionItem {
   minExclusive?: boolean;
   maxExclusive?: boolean;
 }
-
 interface ConditionJSON {
   logic: 'OR' | 'AND';
   conditions: ConditionItem[];
 }
-
 const CONDITION_TYPE_OPTIONS = [
   '逾期天数',
   '逾期天数范围',
   '五级分类',
   'CRR 评级下降',
   '违约标识',
-  '还款状态',
-  '逾期状态',
   '舆情事件',
 ];
-
 const RATING_AGENCY_OPTIONS = [
   { label: '内部评级 (INTERNAL_CRR)', value: 'INTERNAL_CRR' },
   { label: '穆迪 (MOODY)', value: 'MOODY' },
   { label: '标普 (S&P)', value: 'S&P' },
   { label: '惠誉 (FITCH)', value: 'FITCH' },
 ];
-
 const RATING_SCALES: Record<string, string[]> = {
   INTERNAL_CRR: [
     'CRR1', 'CRR2', 'CRR3', 'CRR4', 'CRR5',
@@ -83,12 +75,10 @@ const RATING_SCALES: Record<string, string[]> = {
     'RD', 'D',
   ],
 };
-
 function getRatingOptions(agency: string | undefined): { label: string; value: string }[] {
   const list = RATING_SCALES[agency || 'INTERNAL_CRR'] || RATING_SCALES.INTERNAL_CRR;
   return list.map((r) => ({ label: r, value: r }));
 }
-
 /** Parse jsonCondition string → ConditionJSON, or return empty default */
 function parseConditions(jsonStr?: string): ConditionItem[] {
   if (!jsonStr) return [];
@@ -99,12 +89,19 @@ function parseConditions(jsonStr?: string): ConditionItem[] {
     return [];
   }
 }
-
 /** Serialize conditions → JSON string */
+function parseLogic(jsonStr?: string, defaultLogic: 'OR' | 'AND' = 'OR'): 'OR' | 'AND' {
+  if (!jsonStr) return defaultLogic;
+  try {
+    const parsed = JSON.parse(jsonStr);
+    return parsed.logic || defaultLogic;
+  } catch {
+    return defaultLogic;
+  }
+}
 function serializeConditions(conditions: ConditionItem[], logic: 'OR' | 'AND'): string {
   return JSON.stringify({ logic, conditions });
 }
-
 /** Human-readable label for a single condition */
 function conditionLabel(c: ConditionItem): string {
   switch (c.type) {
@@ -134,20 +131,15 @@ function conditionLabel(c: ConditionItem): string {
       return `五级分类 ${op} {${(c.values || []).join(', ')}}`;
     }
     case '违约标识':
-      return `违约标识 = ${c.value}`;
+      return `违约标识 = ${c.value || '是'}`;
     case 'CRR 评级下降':
-      return 'CRR 评级下降';
-    case '还款状态':
-      return `还款状态 = ${c.value}`;
-    case '逾期状态':
-      return `逾期状态 = ${c.value}`;
+      return `CRR 评级下降 = ${c.value || '是'}`;
     case '舆情事件':
       return `舆情事件: ${c.value || c.operator}`;
     default:
       return `${c.type} ${c.operator} ${c.value || (c.values || []).join(',')}`;
   }
 }
-
 /** Get stage color tokens */
 function stageColor(stage: string): { bg: string; border: string; text: string } {
   switch (stage) {
@@ -161,69 +153,58 @@ function stageColor(stage: string): { bg: string; border: string; text: string }
       return { bg: '#f3f4f6', border: '#e5e7eb', text: '#6b7280' };
   }
 }
-
 /** Check if a forward rule is the default Stage 1 fallback */
 function isDefaultRule(rule: StageRuleVO): boolean {
   return rule.ruleType === 'FORWARD' && rule.targetStage === 'STAGE_1' && rule.priority === 99;
 }
-
 /* ═══════════════════════════════════════════════════
    Component
    ═══════════════════════════════════════════════════ */
-
 const StageConfig: React.FC = () => {
   const [searchParams] = useSearchParams();
   const schemeIdFromUrl = searchParams.get('schemeId') || '';
   const { schemeContext } = useOutletContext<{ schemeContext?: { schemeId: string } }>();
   const effectiveSchemeId = schemeIdFromUrl || schemeContext?.schemeId || '';
-
   // ─── Scheme & Group ───
   const [schemes, setSchemes] = useState<SchemeVO[]>([]);
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>(effectiveSchemeId);
   const [groups, setGroups] = useState<RiskGroupVO[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
-
   // ─── Tab ───
   const [activeTab, setActiveTab] = useState<'forward' | 'rollback' | 'crr'>('forward');
-
   // ─── Rules ───
   const [stageRules, setStageRules] = useState<StageRuleVO[]>([]);
   const [ratingRules, setRatingRules] = useState<RatingDowngradeRuleVO[]>([]);
   const [loading, setLoading] = useState(false);
-
   // ─── Rule modal (step 1 — basic info) ───
   const [ruleModalOpen, setRuleModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<StageRuleVO | null>(null);
+  const [ruleFormType, setRuleFormType] = useState<'FORWARD' | 'ROLLBACK'>('FORWARD');
   const [ruleForm] = Form.useForm();
-
   // ─── Condition editor modal (step 2) ───
   const [editorModalOpen, setEditorModalOpen] = useState(false);
   const [editorRuleId, setEditorRuleId] = useState<string | null>(null);
   const [editorTabType, setEditorTabType] = useState<'forward' | 'rollback'>('forward');
   const [editorConditions, setEditorConditions] = useState<ConditionItem[]>([]);
-
+  const [editorLogic, setEditorLogic] = useState<'OR' | 'AND'>('OR');
   // ─── Copy rules modal ───
   const [copyModalOpen, setCopyModalOpen] = useState(false);
   const [copySourceSchemeId, setCopySourceSchemeId] = useState<string>('');
   const [copySourceGroupId, setCopySourceGroupId] = useState<string>('');
-
   // ─── CRR batch ───
   const [crrBatchVal, setCrrBatchVal] = useState<number>(3);
-
   // Rating rule edit/add modal state
   const [ratingModalOpen, setRatingModalOpen] = useState(false);
   const [ratingModalRule, setRatingModalRule] = useState<RatingDowngradeRuleVO | null>(null); // null = add mode
   const [ratingFormAgency, setRatingFormAgency] = useState('INTERNAL_CRR');
   const [ratingFormCode, setRatingFormCode] = useState('');
   const [ratingFormThreshold, setRatingFormThreshold] = useState(3);
-
   // ─── Load schemes ───
   useEffect(() => {
     schemeApi.list().then((res) => {
       setSchemes((res.data as any)?.data || res.data || []);
     });
   }, []);
-
   // ─── Load groups when scheme changes ───
   useEffect(() => {
     if (!selectedSchemeId) {
@@ -240,7 +221,6 @@ const StageConfig: React.FC = () => {
     setStageRules([]);
     setRatingRules([]);
   }, [selectedSchemeId]);
-
   // ─── Load rules when group changes ───
   const loadRules = useCallback(async () => {
     if (!selectedSchemeId || !selectedGroupId) {
@@ -260,20 +240,18 @@ const StageConfig: React.FC = () => {
       setLoading(false);
     }
   }, [selectedSchemeId, selectedGroupId]);
-
   useEffect(() => { loadRules(); }, [loadRules]);
-
   const forwardRules = stageRules
     .filter((r) => r.ruleType === 'FORWARD')
     .sort((a, b) => a.priority - b.priority);
   const rollbackRules = stageRules
     .filter((r) => r.ruleType === 'ROLLBACK')
     .sort((a, b) => a.priority - b.priority);
-
   // ─── Rule CRUD ───
   const openRuleModal = (rule?: StageRuleVO) => {
     if (rule) {
       setEditingRule(rule);
+      setRuleFormType(rule.ruleType as 'FORWARD' | 'ROLLBACK');
       ruleForm.setFieldsValue({
         ruleType: rule.ruleType,
         priority: rule.priority,
@@ -294,7 +272,6 @@ const StageConfig: React.FC = () => {
     }
     setRuleModalOpen(true);
   };
-
   const handleSaveRule = async () => {
     const values = await ruleForm.validateFields();
     const payload = {
@@ -307,7 +284,6 @@ const StageConfig: React.FC = () => {
       observationDays: values.observationDays,
       jsonCondition: '',
     };
-
     if (editingRule) {
       // Keep existing jsonCondition unless user re-edits conditions
       payload.jsonCondition = editingRule.jsonCondition || '';
@@ -337,7 +313,6 @@ const StageConfig: React.FC = () => {
       }
     }
   };
-
   const handleDeleteRule = (rule: StageRuleVO) => {
     Modal.confirm({
       title: '确认删除',
@@ -349,26 +324,24 @@ const StageConfig: React.FC = () => {
       },
     });
   };
-
   // ─── Condition editor ───
   const openEditor = (rule: StageRuleVO) => {
     const tabType = rule.ruleType === 'FORWARD' ? 'forward' : 'rollback';
     setEditorRuleId(rule.ruleId!);
     setEditorTabType(tabType);
     const parsed = parseConditions(rule.jsonCondition);
+    const savedLogic = parseLogic(rule.jsonCondition, tabType === 'forward' ? 'OR' : 'AND');
+    setEditorLogic(savedLogic);
     setEditorConditions(parsed.length > 0 ? parsed : [{ type: '逾期天数', operator: 'gte', value: '' }]);
     setEditorModalOpen(true);
   };
-
   const saveEditorConditions = async () => {
     if (!editorRuleId) return;
-    const logic = editorTabType === 'forward' ? 'OR' : 'AND';
+    const logic = editorLogic;
     const jsonStr = serializeConditions(editorConditions, logic);
-
     // Find the rule and update it
     const rule = stageRules.find((r) => r.ruleId === editorRuleId);
     if (!rule) return;
-
     await stageApi.updateRule(editorRuleId, {
       ...rule,
       conditions: undefined,
@@ -378,7 +351,6 @@ const StageConfig: React.FC = () => {
     setEditorModalOpen(false);
     loadRules();
   };
-
   // ─── CRR rating rules ───
   const openRatingModal = (rule?: RatingDowngradeRuleVO) => {
     if (rule) {
@@ -394,7 +366,6 @@ const StageConfig: React.FC = () => {
     }
     setRatingModalOpen(true);
   };
-
   const saveRatingRule = async () => {
     if (!ratingFormCode) { message.warning('请选择评级代码'); return; }
     if (ratingModalRule) {
@@ -420,7 +391,6 @@ const StageConfig: React.FC = () => {
     setRatingModalOpen(false);
     loadRules();
   };
-
   const handleDeleteRatingRule = (rule: RatingDowngradeRuleVO) => {
     Modal.confirm({
       title: '确认删除',
@@ -432,7 +402,6 @@ const StageConfig: React.FC = () => {
       },
     });
   };
-
   const batchSetCrr = async () => {
     if (!crrBatchVal || crrBatchVal <= 0) return;
     // Update all existing rating rules to the batch value
@@ -444,7 +413,6 @@ const StageConfig: React.FC = () => {
     message.success(`所有评级阈值已设为 ≥ ${crrBatchVal} 级`);
     loadRules();
   };
-
   // ─── Copy rules ───
   const [copySourceGroups, setCopySourceGroups] = useState<RiskGroupVO[]>([]);
   const handleOpenCopy = () => {
@@ -453,7 +421,6 @@ const StageConfig: React.FC = () => {
     setCopySourceGroups([]);
     setCopyModalOpen(true);
   };
-
   const handleCopySourceSchemeChange = async (schemeId: string) => {
     setCopySourceSchemeId(schemeId);
     setCopySourceGroupId('');
@@ -464,7 +431,6 @@ const StageConfig: React.FC = () => {
       setCopySourceGroups([]);
     }
   };
-
   const handleCopyRules = async () => {
     if (!copySourceSchemeId || !copySourceGroupId) {
       message.warning('请选择源方案和源风险分组');
@@ -475,7 +441,6 @@ const StageConfig: React.FC = () => {
       const data = (res.data as any)?.data || res.data;
       const srcStageRules: StageRuleVO[] = data?.stageRules || [];
       const srcRatingRules: RatingDowngradeRuleVO[] = data?.ratingRules || [];
-
       // Copy stage rules to current group
       await Promise.all(
         srcStageRules.map((r) =>
@@ -491,7 +456,6 @@ const StageConfig: React.FC = () => {
           })
         )
       );
-
       // Copy rating rules
       await Promise.all(
         srcRatingRules.map((r) =>
@@ -504,7 +468,6 @@ const StageConfig: React.FC = () => {
           })
         )
       );
-
       message.success(`已从源分组复制 ${srcStageRules.length} 条阶段规则和 ${srcRatingRules.length} 条评级规则`);
       setCopyModalOpen(false);
       loadRules();
@@ -512,18 +475,15 @@ const StageConfig: React.FC = () => {
       message.error('复制失败');
     }
   };
-
   // ─── Render helpers ───
   const groupItems = groups.map((g) => ({
     groupId: g.groupId,
     groupName: g.groupName,
     groupCode: g.groupCode,
   }));
-
   // ═══════════════════════════════════════════
   // Empty states
   // ═══════════════════════════════════════════
-
   if (!selectedSchemeId) {
     return (
       <div className="ecl-page">
@@ -548,7 +508,6 @@ const StageConfig: React.FC = () => {
       </div>
     );
   }
-
   // ═══════════════════════════════════════════
   // Main render
   // ═══════════════════════════════════════════
@@ -587,7 +546,6 @@ const StageConfig: React.FC = () => {
           border-bottom-color: var(--color-primary);
           font-weight: 600;
         }
-
         /* ─── Table ─── */
         .ecl-table {
           width: 100%;
@@ -622,7 +580,6 @@ const StageConfig: React.FC = () => {
         .ecl-table tr:last-child td {
           border-bottom: none;
         }
-
         /* ─── Condition chips ─── */
         .cond-chip {
           display: inline-flex;
@@ -647,7 +604,6 @@ const StageConfig: React.FC = () => {
           padding: 0 4px;
           font-weight: 500;
         }
-
         /* ─── Stage badge ─── */
         .stage-badge {
           display: inline-flex;
@@ -659,7 +615,6 @@ const StageConfig: React.FC = () => {
           font-weight: 500;
           border: 1px solid;
         }
-
         /* ─── Notes & footer ─── */
         .info-note {
           font-size: 12px;
@@ -687,7 +642,6 @@ const StageConfig: React.FC = () => {
           font-size: 13px;
           text-align: center;
         }
-
         /* ─── Buttons ─── */
         .btn-text {
           background: none;
@@ -743,7 +697,6 @@ const StageConfig: React.FC = () => {
           background: var(--color-primary-dark);
           box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
         }
-
         /* ─── Modal ─── */
         .modal-overlay-custom {
           display: none;
@@ -800,7 +753,6 @@ const StageConfig: React.FC = () => {
           gap: 8px;
           background: var(--color-bg-alt);
         }
-
         /* ─── Condition editor ─── */
         .editor-split {
           display: grid;
@@ -883,7 +835,6 @@ const StageConfig: React.FC = () => {
           grid-template-columns: 1fr 1fr;
           gap: 12px;
         }
-
         /* Empty state */
         .empty-state {
           padding: 40px;
@@ -891,7 +842,6 @@ const StageConfig: React.FC = () => {
           color: var(--color-text-muted);
           font-size: 13px;
         }
-
         /* Toast */
         .toast-custom {
           position: fixed;
@@ -913,7 +863,6 @@ const StageConfig: React.FC = () => {
           transform: translateY(0);
         }
       `}</style>
-
       <div className="ecl-page">
         {/* ─── Page header ─── */}
         <PageHeader
@@ -936,7 +885,6 @@ const StageConfig: React.FC = () => {
             </Space>
           }
         />
-
         {/* ─── Group selector ─── */}
         {groups.length > 0 && (
           <GroupSelector
@@ -945,7 +893,6 @@ const StageConfig: React.FC = () => {
             onChange={setSelectedGroupId}
           />
         )}
-
         {!selectedGroupId ? (
           <Panel>
             {groups.length === 0 ? (
@@ -977,7 +924,6 @@ const StageConfig: React.FC = () => {
                 CRR 评级阈值
               </button>
             </div>
-
             {/* ─── FORWARD tab ─── */}
             {activeTab === 'forward' && (
               <div style={{ padding: 0 }}>
@@ -1026,7 +972,7 @@ const StageConfig: React.FC = () => {
                                   <span key={i}>
                                     <span className="cond-chip">{conditionLabel(c)}</span>
                                     {i < conditions.length - 1 && (
-                                      <span className="cond-or">或</span>
+                                      <span className="cond-or">{parseLogic(r.jsonCondition, 'OR') === 'AND' ? '且' : '或'}</span>
                                     )}
                                   </span>
                                 ))}
@@ -1039,24 +985,19 @@ const StageConfig: React.FC = () => {
                             )}
                           </td>
                           <td>
-                            {defaultRule ? (
-                              <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>只读</span>
-                            ) : (
-                              <>
-                                <button className="btn-text" onClick={() => openEditor(r)}>编辑</button>
-                                <button className="btn-text danger" onClick={() => handleDeleteRule(r)}>删除</button>
-                              </>
-                            )}
+                            <>
+                              <button className="btn-text" onClick={() => openEditor(r)}>编辑</button>
+                              <button className="btn-text danger" onClick={() => handleDeleteRule(r)}>删除</button>
+                            </>
                           </td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
-                <div className="info-note ecl-info-note">引擎按优先级逐条匹配，Stage 1 为兜底规则（只读）</div>
+                <div className="info-note ecl-info-note">引擎按优先级逐条匹配，Stage 1 为兜底规则（建议保留为无条件兜底）</div>
               </div>
             )}
-
             {/* ─── ROLLBACK tab ─── */}
             {activeTab === 'rollback' && (
               <div style={{ padding: 0 }}>
@@ -1092,7 +1033,7 @@ const StageConfig: React.FC = () => {
                               <span key={i}>
                                 <span className="cond-chip">{conditionLabel(c)}</span>
                                 {i < conditions.length - 1 && (
-                                  <span className="cond-and">且</span>
+                                  <span className="cond-and">{parseLogic(r.jsonCondition, 'AND') === 'AND' ? '且' : '或'}</span>
                                 )}
                               </span>
                             ))}
@@ -1111,7 +1052,6 @@ const StageConfig: React.FC = () => {
                 </table>
               </div>
             )}
-
             {/* ─── CRR tab ─── */}
             {activeTab === 'crr' && (
               <div style={{ padding: 0 }}>
@@ -1165,7 +1105,6 @@ const StageConfig: React.FC = () => {
           </Panel>
         )}
       </div>
-
       {/* ═══════════════════════════════════════════
          Rule Modal (Step 1 — basic info)
          ═══════════════════════════════════════════ */}
@@ -1176,11 +1115,14 @@ const StageConfig: React.FC = () => {
         onCancel={() => {
           setRuleModalOpen(false);
           setEditingRule(null);
+          setRuleFormType('FORWARD');
           ruleForm.resetFields();
         }}
         okText={editingRule ? '保存' : '保存并配置条件'}
       >
-        <Form form={ruleForm} layout="vertical">
+        <Form form={ruleForm} layout="vertical" onValuesChange={(changed) => {
+                  if (changed.ruleType) setRuleFormType(changed.ruleType);
+                }}>
           <div className="form-row">
             <Form.Item name="ruleType" label="规则类型" rules={[{ required: true }]}>
               <Select
@@ -1195,17 +1137,19 @@ const StageConfig: React.FC = () => {
             </Form.Item>
           </div>
           <div className="form-row">
-            <Form.Item name="sourceStage" label="来源阶段">
-              <Select
-                allowClear
-                placeholder="（不适用）"
-                options={[
-                  { label: 'Stage 1', value: 'STAGE_1' },
-                  { label: 'Stage 2', value: 'STAGE_2' },
-                  { label: 'Stage 3', value: 'STAGE_3' },
-                ]}
-              />
-            </Form.Item>
+            {ruleFormType === 'ROLLBACK' ? (
+              <Form.Item name="sourceStage" label="来源阶段（回跳前阶段）" rules={[{ required: true, message: 'ROLLBACK 规则必须选择来源阶段' }]}>
+                <Select
+                  options={[
+                    { label: 'Stage 1', value: 'STAGE_1' },
+                    { label: 'Stage 2', value: 'STAGE_2' },
+                    { label: 'Stage 3', value: 'STAGE_3' },
+                  ]}
+                />
+              </Form.Item>
+            ) : (
+              <div style={{ flex: 1 }} />
+            )}
             <Form.Item name="targetStage" label="目标阶段" rules={[{ required: true }]}>
               <Select
                 options={[
@@ -1216,9 +1160,11 @@ const StageConfig: React.FC = () => {
               />
             </Form.Item>
           </div>
-          <Form.Item name="observationDays" label="观察期（天，ROLLBACK 时填写）">
-            <InputNumber min={0} style={{ width: '100%' }} />
-          </Form.Item>
+          {ruleFormType === 'ROLLBACK' && (
+            <Form.Item name="observationDays" label="观察期（天）" rules={[{ required: true, message: 'ROLLBACK 规则必须填写观察期' }]}>
+              <InputNumber min={0} style={{ width: '100%' }} />
+            </Form.Item>
+          )}
         </Form>
         {!editingRule && (
           <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: -8 }}>
@@ -1226,7 +1172,6 @@ const StageConfig: React.FC = () => {
           </div>
         )}
       </Modal>
-
       {/* ═══════════════════════════════════════════
          Condition Editor Modal (Step 2)
          ═══════════════════════════════════════════ */}
@@ -1237,7 +1182,7 @@ const StageConfig: React.FC = () => {
             <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginLeft: 12, fontWeight: 400 }}>
               {groups.find((g) => g.groupId === selectedGroupId)?.groupName || ''}
               {' · '}
-              {editorTabType === 'forward' ? '任一满足 (OR)' : '全部满足 (AND)'}
+              {editorLogic === 'OR' ? '任一满足 (OR)' : '全部满足 (AND)'}
             </span>
           </div>
         }
@@ -1251,7 +1196,26 @@ const StageConfig: React.FC = () => {
           <div>
             <div className="cond-editor">
               <div className="ce-header">
-                <span>条件列表 · 逻辑：{editorTabType === 'forward' ? '任一满足 (OR)' : '全部满足 (AND)'}</span>
+                <span>条件列表 · 逻辑：{editorLogic === 'OR' ? '任一满足 (OR)' : '全部满足 (AND)'}</span>
+                {/*
+                  逻辑说明：
+                  - 所有条件之间使用同一逻辑（简单模式）
+                  - OR：任一条件满足即命中规则
+                  - AND：全部条件满足才命中规则
+                  - 如需混合逻辑如 (A 且 B) 或 C，请拆为多条规则，每条规则内选 AND 或 OR 即可
+                */}
+                <div className="logic-toggle" style={{ display: 'inline-flex', gap: 4, marginLeft: 12 }}>
+                  <button
+                    className={`btn-tag ${editorLogic === 'OR' ? 'active' : ''}`}
+                    onClick={() => setEditorLogic('OR')}
+                    style={{ padding: '2px 10px', fontSize: 11, cursor: 'pointer', border: '1px solid #d1d5db', borderRadius: 4, background: editorLogic === 'OR' ? '#2563eb' : '#fff', color: editorLogic === 'OR' ? '#fff' : '#374151' }}
+                  >OR（任一满足）</button>
+                  <button
+                    className={`btn-tag ${editorLogic === 'AND' ? 'active' : ''}`}
+                    onClick={() => setEditorLogic('AND')}
+                    style={{ padding: '2px 10px', fontSize: 11, cursor: 'pointer', border: '1px solid #d1d5db', borderRadius: 4, background: editorLogic === 'AND' ? '#2563eb' : '#fff', color: editorLogic === 'AND' ? '#fff' : '#374151' }}
+                  >AND（全部满足）</button>
+                </div>
                 <button className="btn-text" onClick={() => setEditorConditions([...editorConditions, { type: '逾期天数', operator: 'gte', value: '' }])}>
                   ＋ 添加条件
                 </button>
@@ -1265,7 +1229,7 @@ const StageConfig: React.FC = () => {
                         value={c.type}
                         onChange={(e) => {
                           const updated = [...editorConditions];
-                          updated[i] = { type: e.target.value, operator: 'eq', value: '' };
+                          updated[i] = { type: e.target.value, operator: 'eq', value: e.target.value === '违约标识' || e.target.value === 'CRR 评级下降' ? '是' : '' };
                           setEditorConditions(updated);
                         }}
                       >
@@ -1273,7 +1237,6 @@ const StageConfig: React.FC = () => {
                           <option key={t} value={t}>{t}</option>
                         ))}
                       </select>
-
                       {/* Type-specific inputs */}
                       {c.type === '逾期天数' && (
                         <>
@@ -1304,7 +1267,6 @@ const StageConfig: React.FC = () => {
                           <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>天</span>
                         </>
                       )}
-
                       {c.type === '逾期天数范围' && (
                         <>
                           <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -1361,7 +1323,6 @@ const StageConfig: React.FC = () => {
                           <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>天</span>
                         </>
                       )}
-
                       {c.type === '五级分类' && (
                         <>
                           <select
@@ -1395,7 +1356,6 @@ const StageConfig: React.FC = () => {
                           ))}
                         </>
                       )}
-
                       {c.type === '违约标识' && (
                         <select
                           style={{ width: 60 }}
@@ -1410,7 +1370,6 @@ const StageConfig: React.FC = () => {
                           <option value="否">否</option>
                         </select>
                       )}
-
                       {c.type === 'CRR 评级下降' && (
                         <select
                           style={{ width: 70 }}
@@ -1425,37 +1384,6 @@ const StageConfig: React.FC = () => {
                           <option value="否">否</option>
                         </select>
                       )}
-
-                      {c.type === '还款状态' && (
-                        <select
-                          style={{ width: 120 }}
-                          value={c.value || ''}
-                          onChange={(e) => {
-                            const updated = [...editorConditions];
-                            updated[i] = { ...updated[i], value: e.target.value };
-                            setEditorConditions(updated);
-                          }}
-                        >
-                          <option value="正常">正常还本付息</option>
-                          <option value="逾期">逾期</option>
-                        </select>
-                      )}
-
-                      {c.type === '逾期状态' && (
-                        <select
-                          style={{ width: 80 }}
-                          value={c.value || ''}
-                          onChange={(e) => {
-                            const updated = [...editorConditions];
-                            updated[i] = { ...updated[i], value: e.target.value };
-                            setEditorConditions(updated);
-                          }}
-                        >
-                          <option value="已消除">已消除</option>
-                          <option value="未消除">未消除</option>
-                        </select>
-                      )}
-
                       {c.type === '舆情事件' && (
                         <input
                           value={c.value || ''}
@@ -1468,7 +1396,6 @@ const StageConfig: React.FC = () => {
                           }}
                         />
                       )}
-
                       <button
                         className="cond-remove"
                         onClick={() => {
@@ -1486,7 +1413,7 @@ const StageConfig: React.FC = () => {
                     </div>
                     {i < editorConditions.length - 1 && (
                       <div className="or-divider">
-                        <span>{editorTabType === 'forward' ? '或' : '且'}</span>
+                        <span>{editorLogic === 'OR' ? '或' : '且'}</span>
                       </div>
                     )}
                   </React.Fragment>
@@ -1515,7 +1442,7 @@ const StageConfig: React.FC = () => {
               }}>
                 {JSON.stringify(
                   {
-                    logic: editorTabType === 'forward' ? 'OR' : 'AND',
+                    logic: editorLogic,
                     conditions: editorConditions.map((c) => {
                       const obj: any = { type: c.type };
                       if (c.type === '逾期天数') { obj.operator = c.operator; obj.value = parseInt(String(c.value)) || 0; }
@@ -1540,7 +1467,6 @@ const StageConfig: React.FC = () => {
           </div>
         </div>
       </Modal>
-
       {/* ═══════════════════════════════════════════
          Copy Rules Modal
          ═══════════════════════════════════════════ */}
@@ -1585,7 +1511,6 @@ const StageConfig: React.FC = () => {
           </div>
         </div>
       </Modal>
-
       {/* Rating rule edit/add modal */}
       <Modal
         open={ratingModalOpen}
@@ -1634,5 +1559,4 @@ const StageConfig: React.FC = () => {
     </>
   );
 };
-
 export default StageConfig;

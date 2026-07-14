@@ -76,7 +76,7 @@ public class EadEngine implements EclEngine {
                     double principal = toDouble(s.getDuePrincipal());
                     double interest = toDouble(s.getDueInterest());
                     double amount = principal + interest;
-                    double years = ChronoUnit.DAYS.between(asset.getCalcDate(), s.getDueDate()) / 365.0;
+                    double years = calcYearsAct365(asset.getCalcDate(), s.getDueDate());
                     double discounted = amount / Math.pow(1 + discountRate, years);
                     sum += discounted;
                     futurePeriods++;
@@ -171,26 +171,48 @@ public class EadEngine implements EclEngine {
 
         // If commitmentDays is set, prefer a curve whose days range covers it
         if (commitmentDays != null) {
-            for (CcfCurveEntity c : curves) {
-                if (productType.equals(c.getProductType()) && commitmentType.equals(c.getCommitmentType())) {
-                    Integer min = c.getCommitmentDaysMin();
-                    Integer max = c.getCommitmentDaysMax();
-                    if (min != null && max != null && commitmentDays >= min && commitmentDays <= max) {
-                        return c.getCcfValue() != null ? c.getCcfValue().doubleValue() : 0.0;
-                    }
-                }
-            }
+            // 1. 精确匹配 (productType + commitmentType)
+            Double result = matchCcf(curves, productType, commitmentType, commitmentDays);
+            if (result != null) return result;
+            // 2. 降级匹配 (只按 productType，忽略 commitmentType 空串)
+            result = matchCcf(curves, productType, "", commitmentDays);
+            if (result != null) return result;
         }
 
-        // Fallback: first matching productType|commitmentType
-        for (CcfCurveEntity c : curves) {
-            if (productType.equals(c.getProductType()) && commitmentType.equals(c.getCommitmentType())) {
-                return c.getCcfValue() != null ? c.getCcfValue().doubleValue() : 0.0;
-            }
-        }
+        // Fallback: first matching productType
+        Double result = matchCcfFirst(curves, productType, commitmentType);
+        if (result != null) return result;
+        result = matchCcfFirst(curves, productType, "");
+        if (result != null) return result;
 
         return defaultCcf;
     }
+
+    /** 按 productType+commitmentType 精确匹配天数范围 */
+    private Double matchCcf(List<CcfCurveEntity> curves, String productType, String commitmentType, int commitmentDays) {
+        for (CcfCurveEntity c : curves) {
+            if (productType.equals(c.getProductType()) && commitmentType.equals(nvl(c.getCommitmentType()))) {
+                Integer min = c.getCommitmentDaysMin();
+                Integer max = c.getCommitmentDaysMax();
+                if (min != null && max != null && commitmentDays >= min && commitmentDays <= max) {
+                    return c.getCcfValue() != null ? c.getCcfValue().doubleValue() : 0.0;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** 按 productType+commitmentType 取第一条匹配 */
+    private Double matchCcfFirst(List<CcfCurveEntity> curves, String productType, String commitmentType) {
+        for (CcfCurveEntity c : curves) {
+            if (productType.equals(c.getProductType()) && commitmentType.equals(nvl(c.getCommitmentType()))) {
+                return c.getCcfValue() != null ? c.getCcfValue().doubleValue() : 0.0;
+            }
+        }
+        return null;
+    }
+
+    private String nvl(String s) { return s != null ? s : ""; }
 
     private boolean isOffBalance(AssetInput asset) {
         String businessType = asset.getBusinessType();
@@ -205,4 +227,12 @@ public class EadEngine implements EclEngine {
     }
 
     private double toDouble(BigDecimal v) { return v != null ? v.doubleValue() : 0.0; }
+
+    /**
+     * ACT/365 天数惯例：实际天数 ÷ 365。
+     * 年化利率折现时使用该惯例将天数转为年数，与年化复利公式 (1+r)^t 配合。
+     */
+    private double calcYearsAct365(LocalDate from, LocalDate to) {
+        return ChronoUnit.DAYS.between(from, to) / 365.0;
+    }
 }

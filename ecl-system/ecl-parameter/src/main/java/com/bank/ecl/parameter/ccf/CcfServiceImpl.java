@@ -54,7 +54,8 @@ public class CcfServiceImpl implements CcfService {
         }
         LambdaQueryWrapper<CcfCurveEntity> wrapper = new LambdaQueryWrapper<CcfCurveEntity>()
                 .eq(CcfCurveEntity::getSchemeId, schemeId);
-        if (productType != null && !productType.isBlank()) {
+        // 空字符串表示全集，空值也查询全部
+        if (productType != null) {
             wrapper.eq(CcfCurveEntity::getProductType, productType);
         }
         List<CcfCurveEntity> entities = ccfCurveMapper.selectList(wrapper);
@@ -90,10 +91,10 @@ public class CcfServiceImpl implements CcfService {
 
         // 更新字段
         if (req.getProductType() != null) {
-            entity.setProductType(req.getProductType());
+            entity.setProductType(req.getProductType().isEmpty() ? "" : req.getProductType());
         }
         if (req.getCommitmentType() != null) {
-            entity.setCommitmentType(req.getCommitmentType());
+            entity.setCommitmentType(req.getCommitmentType().isEmpty() ? "" : req.getCommitmentType());
         }
         Integer daysMin = firstPresent(req.getCommitmentDaysMin(), req.getDaysMin());
         Integer daysMax = firstPresent(req.getCommitmentDaysMax(), req.getDaysMax());
@@ -169,8 +170,9 @@ public class CcfServiceImpl implements CcfService {
     private CcfCurveEntity buildEntity(String schemeId, CcfCurveCreateReq req, Integer daysMin, Integer daysMax) {
         CcfCurveEntity entity = new CcfCurveEntity();
         entity.setSchemeId(schemeId);
-        entity.setProductType(req.getProductType());
-        entity.setCommitmentType(req.getCommitmentType());
+        // 空字符串表示全集，存储为空字符串以便查询
+        entity.setProductType(req.getProductType() != null ? req.getProductType() : "");
+        entity.setCommitmentType(req.getCommitmentType() != null ? req.getCommitmentType() : "");
         entity.setCommitmentDaysMin(daysMin);
         entity.setCommitmentDaysMax(daysMax);
         entity.setCcfValue(req.getCcfValue());

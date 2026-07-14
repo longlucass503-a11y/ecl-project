@@ -57,13 +57,14 @@ const SchemeCompare: React.FC = () => {
   }));
 
   const diffColumns = [
-    { title: '模块名称', dataIndex: 'field', key: 'field', width: 200 },
-    { title: '方案1 值', dataIndex: 'oldValue', key: 'oldValue' },
-    { title: '方案2 值', dataIndex: 'newValue', key: 'newValue' },
+    { title: '模块名称', dataIndex: 'module', key: 'module', width: 200 },
+    { title: '方案1 版本', dataIndex: 'versionFrom', key: 'versionFrom' },
+    { title: '方案2 版本', dataIndex: 'versionTo', key: 'versionTo' },
+    { title: '差异项数', dataIndex: 'changedItems', key: 'changedItems', width: 100 },
     {
       title: '是否一致', key: 'match', width: 100,
       render: (_: unknown, record: SchemeDiffVO) =>
-        record.oldValue === record.newValue
+        record.same
           ? <Tag color="success">✔ 一致</Tag>
           : <Tag color="error">✖ 不一致</Tag>,
     },
@@ -127,7 +128,7 @@ const SchemeCompare: React.FC = () => {
               <Table
                 columns={diffColumns}
                 dataSource={diffData}
-                rowKey="field"
+                rowKey="module"
                 pagination={false}
                 bordered
                 size="small"

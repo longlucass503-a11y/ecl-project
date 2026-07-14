@@ -23,9 +23,11 @@ export interface SchemeVO {
 }
 
 export interface SchemeDiffVO {
-  field: string;
-  oldValue: string;
-  newValue: string;
+  module: string;
+  versionFrom: string;
+  versionTo: string;
+  changedItems: number;
+  same: boolean;
 }
 
 export const schemeApi = {
@@ -45,4 +47,6 @@ export const schemeApi = {
   compare: (schemeId1: string, schemeId2: string) =>
     request.get<SchemeDiffVO[]>('/v1/schemes/compare', { params: { schemeId1, schemeId2 } }),
   delete: (id: string) => request.delete(`/v1/schemes/${id}`),
+  updateDefaultParams: (id: string, data: { discountRate: number; defaultCcf: number; defaultLgd: number; lgdFloor: number }) =>
+    request.put<SchemeVO>(`/v1/schemes/${id}/default-params`, data),
 };

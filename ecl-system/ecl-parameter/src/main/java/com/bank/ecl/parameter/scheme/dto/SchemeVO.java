@@ -21,6 +21,7 @@ public class SchemeVO {
     private BigDecimal discountRate;
     private BigDecimal defaultCcf;
     private BigDecimal defaultLgd;
+    private BigDecimal lgdFloor;
     private String createdBy;
     private LocalDateTime createdAt;
     private String updatedBy;

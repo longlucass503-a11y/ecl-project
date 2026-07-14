@@ -98,6 +98,14 @@ public class OverlayServiceImpl implements OverlayService {
     @Transactional(rollbackFor = Exception.class)
     public OverlayRuleVO createRule(OverlayRuleCreateReq req) {
         checkSchemeDraft(req.getSchemeId());
+
+        // 业务校验：ADDBP 类型下 adjustmentValue 须大于 0
+        if ("ADDBP".equals(req.getAdjustmentType())
+                && (req.getAdjustmentValue() == null || req.getAdjustmentValue().compareTo(BigDecimal.ZERO) <= 0)) {
+            throw new EclException(ErrorCode.ECL_006,
+                    "ADDBP 类型下 adjustmentValue 必须大于 0");
+        }
+
         String conditions = normalizeInputConditions(req.getConditions());
         validateConditions(conditions);
         validateDates(req.getEffectiveDate(), req.getExpiryDate());
@@ -117,6 +125,14 @@ public class OverlayServiceImpl implements OverlayService {
             throw new EclException(ErrorCode.ECL_006, "管理层叠加规则不存在: " + ruleId);
         }
         checkSchemeDraft(entity.getSchemeId());
+
+        // 业务校验：ADDBP 类型下 adjustmentValue 须大于 0
+        if ("ADDBP".equals(req.getAdjustmentType())
+                && (req.getAdjustmentValue() == null || req.getAdjustmentValue().compareTo(BigDecimal.ZERO) <= 0)) {
+            throw new EclException(ErrorCode.ECL_006,
+                    "ADDBP 类型下 adjustmentValue 必须大于 0");
+        }
+
         String conditions = normalizeInputConditions(req.getConditions());
         validateConditions(conditions);
         validateDates(req.getEffectiveDate(), req.getExpiryDate());
@@ -163,10 +179,18 @@ public class OverlayServiceImpl implements OverlayService {
     @Override
     public OverlayMatchTestResp testMatch(OverlayMatchTestReq req) {
         // 1. 加载所有规则
-        List<OverlayRuleEntity> allRules = overlayRuleMapper.selectList(
-                new LambdaQueryWrapper<OverlayRuleEntity>()
-                        .eq(OverlayRuleEntity::getSchemeId, req.getSchemeId())
-                        .eq(OverlayRuleEntity::getGroupId, req.getGroupId()));
+        // 查询规则：groupId 为空时查询方案下所有规则
+        List<OverlayRuleEntity> allRules;
+        if (req.getGroupId() != null && !req.getGroupId().isBlank()) {
+            allRules = overlayRuleMapper.selectList(
+                    new LambdaQueryWrapper<OverlayRuleEntity>()
+                            .eq(OverlayRuleEntity::getSchemeId, req.getSchemeId())
+                            .eq(OverlayRuleEntity::getGroupId, req.getGroupId()));
+        } else {
+            allRules = overlayRuleMapper.selectList(
+                    new LambdaQueryWrapper<OverlayRuleEntity>()
+                            .eq(OverlayRuleEntity::getSchemeId, req.getSchemeId()));
+        }
 
         Map<String, Object> fieldValues = req.getFieldValues();
         if (fieldValues == null) {

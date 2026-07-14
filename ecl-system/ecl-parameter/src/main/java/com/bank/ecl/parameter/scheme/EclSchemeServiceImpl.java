@@ -9,7 +9,9 @@ import com.bank.ecl.common.util.UuidGenerator;
 import com.bank.ecl.data.entity.*;
 import com.bank.ecl.data.mapper.*;
 import com.bank.ecl.parameter.copy.SchemeCopyService;
+import com.bank.ecl.parameter.dict.DictService;
 import com.bank.ecl.parameter.scheme.dto.SchemeCreateReq;
+import com.bank.ecl.parameter.scheme.dto.SchemeDefaultParamReq;
 import com.bank.ecl.parameter.scheme.dto.SchemeDiffVO;
 import com.bank.ecl.parameter.scheme.dto.SchemeVO;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ public class EclSchemeServiceImpl implements EclSchemeService {
 
     private final EclSchemeMapper schemeMapper;
     private final SchemeCopyService schemeCopyService;
+    private final DictService dictService;
 
     private final RiskGroupMapper riskGroupMapper;
     private final RiskGroupDetailMapper riskGroupDetailMapper;
@@ -63,6 +66,7 @@ public class EclSchemeServiceImpl implements EclSchemeService {
 
         // 3. 保存并返回 VO
         schemeMapper.insert(entity);
+        dictService.initSchemeDicts(entity.getSchemeId());
         return toVO(entity);
     }
 
@@ -220,6 +224,26 @@ public class EclSchemeServiceImpl implements EclSchemeService {
         return toVO(entity);
     }
 
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SchemeVO updateDefaultParams(String schemeId, SchemeDefaultParamReq req) {
+        EclSchemeEntity entity = schemeMapper.selectById(schemeId);
+        if (entity == null) {
+            throw new EclException(ErrorCode.ECL_004, "方案不存在: " + schemeId);
+        }
+        if (!"DRAFT".equals(entity.getStatus())) {
+            throw new EclException(ErrorCode.ECL_004, "仅 DRAFT 状态的方案可修改缺省参数");
+        }
+        entity.setDiscountRate(req.getDiscountRate());
+        entity.setDefaultCcf(req.getDefaultCcf());
+        entity.setDefaultLgd(req.getDefaultLgd());
+        entity.setLgdFloor(req.getLgdFloor());
+        entity.setUpdatedAt(LocalDateTime.now());
+        schemeMapper.updateById(entity);
+        return toVO(entity);
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteScheme(String schemeId) {
@@ -254,6 +278,7 @@ public class EclSchemeServiceImpl implements EclSchemeService {
         vo.setDiscountRate(entity.getDiscountRate());
         vo.setDefaultCcf(entity.getDefaultCcf());
         vo.setDefaultLgd(entity.getDefaultLgd());
+        vo.setLgdFloor(entity.getLgdFloor());
         vo.setCreatedBy(entity.getCreatedBy());
         vo.setCreatedAt(entity.getCreatedAt());
         vo.setUpdatedBy(entity.getUpdatedBy());

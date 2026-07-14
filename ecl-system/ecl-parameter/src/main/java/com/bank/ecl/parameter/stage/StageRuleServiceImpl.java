@@ -83,6 +83,18 @@ public class StageRuleServiceImpl implements StageRuleService {
         checkSchemeDraft(req.getSchemeId());
         String conditions = firstPresent(req.getJsonCondition(), req.getConditions());
         validateConditions(conditions);
+        // 校验 stageTo 必须是有效阶段值（STAGE_1/2/3）
+        String _stageTo = firstPresent(req.getStageTo(), req.getTargetStage());
+        if (_stageTo != null && !_stageTo.isBlank()
+            && !"STAGE_1".equals(_stageTo)
+            && !"STAGE_2".equals(_stageTo)
+            && !"STAGE_3".equals(_stageTo)) {
+            throw new EclException(ErrorCode.ECL_006, "无效的阶段值: " + _stageTo + "，有效值: STAGE_1/STAGE_2/STAGE_3");
+        }
+        // 校验 ruleType 不能为空（防御性）
+        if (req.getRuleType() == null || req.getRuleType().isBlank()) {
+            throw new EclException(ErrorCode.ECL_006, "规则类型不能为空");
+        }
 
         StageRuleEntity entity = new StageRuleEntity();
         entity.setSchemeId(req.getSchemeId());
@@ -108,6 +120,18 @@ public class StageRuleServiceImpl implements StageRuleService {
         checkSchemeDraft(entity.getSchemeId());
         String conditions = firstPresent(req.getJsonCondition(), req.getConditions());
         validateConditions(conditions);
+        // 校验 stageTo 必须是有效阶段值（STAGE_1/2/3）
+        String _stageTo = firstPresent(req.getStageTo(), req.getTargetStage());
+        if (_stageTo != null && !_stageTo.isBlank()
+            && !"STAGE_1".equals(_stageTo)
+            && !"STAGE_2".equals(_stageTo)
+            && !"STAGE_3".equals(_stageTo)) {
+            throw new EclException(ErrorCode.ECL_006, "无效的阶段值: " + _stageTo + "，有效值: STAGE_1/STAGE_2/STAGE_3");
+        }
+        // 校验 ruleType 不能为空（防御性）
+        if (req.getRuleType() == null || req.getRuleType().isBlank()) {
+            throw new EclException(ErrorCode.ECL_006, "规则类型不能为空");
+        }
 
         entity.setRuleType(req.getRuleType());
         entity.setStageFrom(firstPresent(req.getStageFrom(), req.getSourceStage()));

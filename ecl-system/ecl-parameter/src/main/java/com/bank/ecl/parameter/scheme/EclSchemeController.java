@@ -3,6 +3,7 @@ package com.bank.ecl.parameter.scheme;
 import com.bank.ecl.common.model.Result;
 import com.bank.ecl.parameter.copy.publish.SchemePublishService;
 import com.bank.ecl.parameter.scheme.dto.SchemeCreateReq;
+import com.bank.ecl.parameter.scheme.dto.SchemeDefaultParamReq;
 import com.bank.ecl.parameter.scheme.dto.SchemeDiffVO;
 import com.bank.ecl.parameter.scheme.dto.SchemePublishReq;
 import com.bank.ecl.parameter.scheme.dto.SchemeVO;
@@ -64,6 +65,12 @@ public class EclSchemeController {
     public Result<SchemeVO> updateScheme(@PathVariable String schemeId,
                                          @Valid @RequestBody SchemeCreateReq req) {
         return Result.success(schemeService.updateScheme(schemeId, req));
+    }
+
+    @PutMapping("/{schemeId}/default-params")
+    public Result<SchemeVO> updateDefaultParams(@PathVariable String schemeId,
+                                                  @Valid @RequestBody SchemeDefaultParamReq req) {
+        return Result.success(schemeService.updateDefaultParams(schemeId, req));
     }
 
     @PutMapping("/{schemeId}/publish")

@@ -8,6 +8,7 @@ import {
   LineChartOutlined,
   PercentageOutlined,
   SafetyCertificateOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import { StatusTag } from '../components';
 import './MainLayout.css';
@@ -23,6 +24,7 @@ type SchemeStatus = 'DRAFT' | 'PUBLISHED' | 'EFFECTIVE' | 'EXPIRED';
 
 const sidebarItems = [
   { key: 'overview', label: '方案总览', icon: <DashboardOutlined /> },
+  { key: 'dict', label: '基础信息', icon: <SettingOutlined /> },
   { key: 'risk-groups', label: '风险分组', icon: <AppstoreOutlined /> },
   { key: 'stage', label: '阶段划分', icon: <BranchesOutlined /> },
   { key: 'pd', label: 'PD 参数', icon: <LineChartOutlined /> },
@@ -55,6 +57,7 @@ const MainLayout: React.FC = () => {
 
   // Determine active sidebar item
   const activeSp =
+    location.pathname.includes('/parameters/dict') ? 'dict' :
     location.pathname.includes('/parameters/risk-groups') ? 'risk-groups' :
     location.pathname.includes('/parameters/stage') ? 'stage' :
     location.pathname.includes('/parameters/pd') ? 'pd' :

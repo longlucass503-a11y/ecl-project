@@ -16,6 +16,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined } from '@ant
 import { useSearchParams, useOutletContext } from 'react-router-dom';
 import { schemeApi, type SchemeVO } from '../../api/scheme';
 import { ccfApi, type CcfCurveVO } from '../../api/ccf';
+import { dictApi, type DictEntryVO } from '../../api/dict';
 import { PageHeader, Panel } from '../../components';
 
 const CcfConfig: React.FC = () => {
@@ -34,6 +35,22 @@ const CcfConfig: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCurve, setEditingCurve] = useState<CcfCurveVO | null>(null);
   const [form] = Form.useForm();
+  const [dictProductType, setDictProductType] = useState<DictEntryVO[]>([]);
+  const [dictCommitmentType, setDictCommitmentType] = useState<DictEntryVO[]>([]);
+  const [dictCollateral, setDictCollateral] = useState<DictEntryVO[]>([]);
+
+  // 加载字典选项
+  useEffect(() => {
+    if (effectiveSchemeId) {
+      Promise.all([
+        dictApi.getEffectiveEntries(effectiveSchemeId, 'PRODUCT_TYPE'),
+        dictApi.getEffectiveEntries(effectiveSchemeId, 'COMMITMENT_TYPE'),
+      ]).then(([prodRes, cmtRes]) => {
+        setDictProductType((prodRes.data as any)?.data || prodRes.data || []);
+        setDictCommitmentType((cmtRes.data as any)?.data || cmtRes.data || []);
+      }).catch(console.error);
+    }
+  }, [effectiveSchemeId]);
 
   // 加载方案列表
   useEffect(() => {
@@ -303,16 +320,36 @@ const CcfConfig: React.FC = () => {
           <Form.Item
             name="productType"
             label="产品类型"
-            rules={[{ required: true, message: '请输入产品类型' }]}
+            rules={[{ required: false }]}
           >
-            <Input placeholder="如：LOAN, GUARANTEE" />
+            <Select
+              allowClear
+              placeholder="请选择产品类型（为空=全集）"
+              options={[
+                { label: '不限（全集）', value: '' },
+                ...dictProductType.map((d) => ({
+                  label: `${d.entryName}(${d.entryCode})`,
+                  value: d.entryCode || '',
+                })),
+              ]}
+            />
           </Form.Item>
           <Form.Item
             name="commitmentType"
             label="承诺类型"
-            rules={[{ required: true, message: '请输入承诺类型' }]}
+            rules={[{ required: false }]}
           >
-            <Input placeholder="如：IRREVOCABLE, REVOCABLE" />
+            <Select
+              allowClear
+              placeholder="请选择承诺类型（为空=全集）"
+              options={[
+                { label: '不限（全集）', value: '' },
+                ...dictCommitmentType.map((d) => ({
+                  label: `${d.entryName}(${d.entryCode})`,
+                  value: d.entryCode || '',
+                })),
+              ]}
+            />
           </Form.Item>
           <Form.Item
             name="commitmentDaysMin"

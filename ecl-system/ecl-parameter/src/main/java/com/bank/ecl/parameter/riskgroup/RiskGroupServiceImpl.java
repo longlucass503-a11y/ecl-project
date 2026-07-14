@@ -11,6 +11,8 @@ import com.bank.ecl.data.entity.RiskGroupEntity;
 import com.bank.ecl.data.mapper.EclSchemeMapper;
 import com.bank.ecl.data.mapper.RiskGroupDetailMapper;
 import com.bank.ecl.data.mapper.RiskGroupMapper;
+import com.bank.ecl.data.mapper.StageRuleMapper;
+import com.bank.ecl.data.entity.StageRuleEntity;
 import com.bank.ecl.parameter.riskgroup.dto.RiskGroupCreateReq;
 import com.bank.ecl.parameter.riskgroup.dto.RiskGroupCreateReq.RiskGroupDetailReq;
 import com.bank.ecl.parameter.riskgroup.dto.RiskGroupDetailVO;
@@ -32,6 +34,7 @@ public class RiskGroupServiceImpl implements RiskGroupService {
     private final RiskGroupMapper riskGroupMapper;
     private final RiskGroupDetailMapper riskGroupDetailMapper;
     private final EclSchemeMapper eclSchemeMapper;
+    private final StageRuleMapper stageRuleMapper;
 
     // ======================== 公共校验 ========================
 
@@ -137,6 +140,14 @@ public class RiskGroupServiceImpl implements RiskGroupService {
             maxSeq = riskGroupMapper.selectMaxRiskGroupSeq();
             groupCode = UuidGenerator.generateBizCode("GRP", maxSeq + 1);
         }
+        // 校验 groupCode 在方案内唯一
+        Long count = riskGroupMapper.selectCount(
+            new LambdaQueryWrapper<RiskGroupEntity>()
+                .eq(RiskGroupEntity::getSchemeId, req.getSchemeId())
+                .eq(RiskGroupEntity::getGroupCode, groupCode));
+        if (count > 0) {
+            throw new EclException(ErrorCode.ECL_006, "分组编码 " + groupCode + " 已存在，请使用其他编码");
+        }
 
         RiskGroupEntity entity = new RiskGroupEntity();
         entity.setGroupId(groupId);
@@ -219,6 +230,14 @@ public class RiskGroupServiceImpl implements RiskGroupService {
         RiskGroupEntity entity = riskGroupMapper.selectById(groupId);
         if (entity == null || !entity.getSchemeId().equals(schemeId)) {
             throw new EclException(ErrorCode.ECL_006, "风险分组不存在: " + groupId);
+        }
+        // 检查是否有关联阶段规则
+        long stageRuleCount = stageRuleMapper.selectCount(
+                new LambdaQueryWrapper<StageRuleEntity>()
+                        .eq(StageRuleEntity::getSchemeId, schemeId)
+                        .eq(StageRuleEntity::getGroupId, groupId));
+        if (stageRuleCount > 0) {
+            throw new EclException(ErrorCode.ECL_006, "分组已关联阶段规则，无法删除");
         }
         // 级联删除明细
         riskGroupDetailMapper.delete(

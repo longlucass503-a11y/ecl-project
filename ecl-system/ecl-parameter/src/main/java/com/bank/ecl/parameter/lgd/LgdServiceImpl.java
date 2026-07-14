@@ -139,6 +139,17 @@ public class LgdServiceImpl implements LgdService {
                                          List<LgdDepreciationCreateReq> items) {
         checkSchemeDraft(schemeId);
 
+        // 校验折旧率必须为负值（折旧是资产价值递减，正值无意义）
+        if (items != null) {
+            for (LgdDepreciationCreateReq req : items) {
+                if (req.getDepreciationRate() != null && req.getDepreciationRate().compareTo(java.math.BigDecimal.ZERO) >= 0) {
+                    throw new com.bank.ecl.common.exception.EclException(
+                            com.bank.ecl.common.exception.ErrorCode.ECL_006,
+                            "depreciationRate 必须为负值，当前值: " + req.getDepreciationRate());
+                }
+            }
+        }
+
         // 先删后插
         lgdDepreciationMapper.delete(
                 new LambdaQueryWrapper<LgdDepreciationEntity>()

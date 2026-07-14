@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import { Button, Space, Modal, Form, Input, Select, message, Spin, Typography } from 'antd';
+import { Button, Space, Modal, Form, Input, InputNumber, Select, message, Spin, Typography } from 'antd';
 import {
   AppstoreOutlined,
   BarChartOutlined,
@@ -11,8 +11,10 @@ import {
   PercentageOutlined,
   SafetyCertificateOutlined,
   SendOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import { schemeApi, type SchemeVO } from '../../api/scheme';
+import { dictApi, type SchemeDictVO } from '../../api/dict';
 import { Panel, StatusTag } from '../../components';
 
 const moduleCards = [
@@ -50,7 +52,19 @@ const SchemeOverview: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [publishModalOpen, setPublishModalOpen] = useState(false);
+  const [defaultParamModalOpen, setDefaultParamModalOpen] = useState(false);
+  const [schemeDicts, setSchemeDicts] = useState<SchemeDictVO[]>([]);
   const [form] = Form.useForm();
+  const [defaultParamForm] = Form.useForm();
+
+  const fetchSchemeDicts = async (sid: string) => {
+    try {
+      const res = await dictApi.listSchemeDicts(sid);
+      setSchemeDicts((res.data as any)?.data || res.data || []);
+    } catch (err) {
+      console.error('加载基础信息失败', err);
+    }
+  };
 
   const fetchScheme = async () => {
     if (!id) return;
@@ -59,6 +73,7 @@ const SchemeOverview: React.FC = () => {
       const res = await schemeApi.getById(id);
       const s = (res.data as any)?.data || res.data || null;
       setScheme(s);
+      fetchSchemeDicts(id);
       if (s) {
         setSchemeContext({
           schemeId: s.schemeId,
@@ -114,6 +129,40 @@ const SchemeOverview: React.FC = () => {
     });
   };
 
+  const openDefaultParamModal = () => {
+    if (!scheme) return;
+    defaultParamForm.setFieldsValue({
+      // discountRate 后端存百分比值，直接显示
+      discountRate: scheme.discountRate,
+      defaultCcf: scheme.defaultCcf != null ? +(scheme.defaultCcf * 100).toFixed(2) : 0,
+      defaultLgd: scheme.defaultLgd != null ? +(scheme.defaultLgd * 100).toFixed(2) : 0,
+      lgdFloor: scheme.lgdFloor != null ? +(scheme.lgdFloor * 100).toFixed(2) : 0,
+    });
+    setDefaultParamModalOpen(true);
+  };
+
+  const handleDefaultParamSave = async () => {
+    if (!scheme) return;
+    try {
+      const values = await defaultParamForm.validateFields();
+      await schemeApi.updateDefaultParams(scheme.schemeId, {
+        // discountRate 后端存百分比值，直接提交
+        discountRate: values.discountRate,
+        defaultCcf: +(values.defaultCcf / 100).toFixed(4),
+        defaultLgd: +(values.defaultLgd / 100).toFixed(4),
+        lgdFloor: +(values.lgdFloor / 100).toFixed(4),
+      });
+      message.success('缺省参数已更新');
+      setDefaultParamModalOpen(false);
+      defaultParamForm.resetFields();
+      fetchScheme();
+    } catch (err) {
+      // validation error or API error — handled by antd / message
+      if ((err as any)?.errorFields) return;
+      message.error('保存缺省参数失败');
+    }
+  };
+
   if (loading) return <Spin size="large" style={{ display: 'block', marginTop: 100 }} />;
   if (!scheme) return <Panel><Typography.Text type="secondary">方案不存在或已删除</Typography.Text></Panel>;
 
@@ -143,25 +192,33 @@ const SchemeOverview: React.FC = () => {
           <Space>
             {scheme.status === 'DRAFT' && (
               <>
-                <Button icon={<EditOutlined />}
-                  onClick={() => { form.setFieldsValue(scheme); setEditModalOpen(true); }}>编辑</Button>
-                <Button type="primary" icon={<SendOutlined />}
-                  onClick={() => setPublishModalOpen(true)}>发布</Button>
-                <Button danger icon={<DeleteOutlined />}
-                  onClick={handleDelete}>删除</Button>
+                <Button type="primary" ghost icon={<EditOutlined />}
+                  onClick={() => {
+                    form.setFieldsValue({ schemeName: scheme.schemeName, description: scheme.description });
+                    setEditModalOpen(true);
+                  }}>
+                  编辑
+                </Button>
+                <Button type="primary" icon={<SendOutlined />} onClick={() => setPublishModalOpen(true)}>
+                  发布
+                </Button>
+                <Button danger icon={<DeleteOutlined />} onClick={handleDelete}>
+                  删除
+                </Button>
               </>
             )}
-            <Button onClick={() => {
-              Modal.confirm({
-                title: '基于本方案复制',
-                content: '将基于当前方案创建一份全新的 DRAFT 方案。',
-                onOk: async () => {
-                  await schemeApi.copyFrom(scheme.schemeId, '基于 ' + scheme.schemeCode + ' 复制');
-                  message.success('复制成功');
-                  navigate('/schemes');
-                },
-              });
-            }}>基于本方案复制</Button>
+            <Button icon={<EditOutlined />}
+              onClick={() => {
+                Modal.confirm({
+                  title: '基于本方案复制',
+                  content: '将创建一个新的 DRAFT 方案',
+                  onOk: async () => {
+                    await schemeApi.copyFrom(scheme.schemeId, '基于 ' + scheme.schemeCode + ' 复制');
+                    message.success('复制成功');
+                    navigate('/schemes');
+                  },
+                });
+              }}>基于本方案复制</Button>
           </Space>
         </div>
 
@@ -185,25 +242,48 @@ const SchemeOverview: React.FC = () => {
         </div>
       </Panel>
 
-      {/* Scheme-level Parameters */}
-      <Panel title="方案级缺省参数" extra={<span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>点击可编辑</span>}>
+      {/* Scheme-level Default Parameters */}
+      <Panel title="方案级缺省参数" extra={
+        scheme.status === 'DRAFT'
+          ? <Button type="link" size="small" icon={<EditOutlined />} onClick={openDefaultParamModal}>编辑</Button>
+          : <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>已生效不可编辑</span>
+      }>
         <div className="ecl-param-grid">
-          <div className="ecl-param-item" onClick={() => message.info('编辑折扣率功能')}>
+          <div className="ecl-param-item" onClick={() => scheme.status === 'DRAFT' ? openDefaultParamModal() : message.info('已生效方案不可编辑')}>
             <div className="ecl-info-label">折扣率 (discount_rate)</div>
-            <div className="ecl-info-value" style={{ color: 'var(--color-primary)' }}>{scheme.discountRate}%</div>
+            <div className="ecl-info-value" style={{ color: 'var(--color-primary)' }}>{scheme.discountRate != null ? Number(scheme.discountRate).toFixed(2) + '%' : '-'}</div>
           </div>
-          <div className="ecl-param-item" onClick={() => message.info('编辑默认CCF功能')}>
+          <div className="ecl-param-item" onClick={() => scheme.status === 'DRAFT' ? openDefaultParamModal() : message.info('已生效方案不可编辑')}>
             <div className="ecl-info-label">默认 CCF (default_ccf)</div>
-            <div className="ecl-info-value" style={{ color: 'var(--color-primary)' }}>{scheme.defaultCcf}</div>
+            <div className="ecl-info-value" style={{ color: 'var(--color-primary)' }}>{scheme.defaultCcf != null ? (scheme.defaultCcf * 100).toFixed(2) + '%' : '-'}</div>
           </div>
-          <div className="ecl-param-item" onClick={() => message.info('编辑默认LGD功能')}>
+          <div className="ecl-param-item" onClick={() => scheme.status === 'DRAFT' ? openDefaultParamModal() : message.info('已生效方案不可编辑')}>
             <div className="ecl-info-label">默认 LGD (default_lgd)</div>
-            <div className="ecl-info-value" style={{ color: 'var(--color-primary)' }}>{scheme.defaultLgd}</div>
+            <div className="ecl-info-value" style={{ color: 'var(--color-primary)' }}>{scheme.defaultLgd != null ? (scheme.defaultLgd * 100).toFixed(2) + '%' : '-'}</div>
           </div>
-          <div className="ecl-param-item" onClick={() => message.info('编辑LGD下限功能')}>
+          <div className="ecl-param-item" onClick={() => scheme.status === 'DRAFT' ? openDefaultParamModal() : message.info('已生效方案不可编辑')}>
             <div className="ecl-info-label">LGD 下限 (lgd_floor)</div>
-            <div className="ecl-info-value" style={{ color: 'var(--color-primary)' }}>{scheme.lgdFloor}</div>
+            <div className="ecl-info-value" style={{ color: 'var(--color-primary)' }}>{scheme.lgdFloor != null ? (scheme.lgdFloor * 100).toFixed(2) + '%' : '0%'}</div>
           </div>
+        </div>
+      </Panel>
+
+      {/* Scheme Dict Info */}
+      <Panel title="基础信息" extra={
+        <Button type="link" size="small" icon={<SettingOutlined />} onClick={() => navigate(`/parameters/dict?schemeId=${scheme.schemeId}`)}>
+          配置
+        </Button>
+      }>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, padding: '4px 0' }}>
+          {schemeDicts.map(sd => (
+            <div key={sd.categoryId} style={{
+              background: '#f9fafb', border: '1px solid var(--color-border)',
+              borderRadius: 6, padding: '8px 14px', fontSize: 13,
+            }}>
+              <div style={{ color: 'var(--color-text-secondary)', marginBottom: 2 }}>{sd.categoryName}</div>
+              <div style={{ fontWeight: 500 }}>{sd.effectiveEntries?.length || 0} 项{sd.overrideType === 'CUSTOM' ? ' · 自定义' : ''}</div>
+            </div>
+          ))}
         </div>
       </Panel>
 
@@ -227,7 +307,9 @@ const SchemeOverview: React.FC = () => {
         </div>
       </Panel>
 
-      {/* Modals same as before — edit / publish */}
+      {/* Modals */}
+
+      {/* Edit Scheme Info Modal */}
       <Modal title="编辑方案" open={editModalOpen}
         onOk={handleEdit} onCancel={() => { setEditModalOpen(false); form.resetFields(); }}
         okText="保存" cancelText="取消">
@@ -241,6 +323,7 @@ const SchemeOverview: React.FC = () => {
         </Form>
       </Modal>
 
+      {/* Publish Modal */}
       <Modal title="发布方案" open={publishModalOpen}
         onOk={handlePublish} onCancel={() => { setPublishModalOpen(false); form.resetFields(); }}
         okText="发布" cancelText="取消">
@@ -260,6 +343,30 @@ const SchemeOverview: React.FC = () => {
                 </Form.Item>
               ) : null
             }
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Default Parameters Modal */}
+      <Modal title="编辑方案级缺省参数" open={defaultParamModalOpen}
+        onOk={handleDefaultParamSave} onCancel={() => { setDefaultParamModalOpen(false); defaultParamForm.resetFields(); }}
+        okText="保存" cancelText="取消">
+        <Form form={defaultParamForm} layout="vertical">
+          <Form.Item name="discountRate" label="折扣率 (discount_rate) %"
+            rules={[{ required: true, message: '请输入折扣率' }]}>
+            <InputNumber style={{ width: '100%' }} min={0} max={100} step={0.01} addonAfter="%" />
+          </Form.Item>
+          <Form.Item name="defaultCcf" label="默认 CCF (default_ccf) %"
+            rules={[{ required: true, message: '请输入默认 CCF' }]}>
+            <InputNumber style={{ width: '100%' }} min={0} max={100} step={0.01} addonAfter="%" />
+          </Form.Item>
+          <Form.Item name="defaultLgd" label="默认 LGD (default_lgd) %"
+            rules={[{ required: true, message: '请输入默认 LGD' }]}>
+            <InputNumber style={{ width: '100%' }} min={0} max={100} step={0.01} addonAfter="%" />
+          </Form.Item>
+          <Form.Item name="lgdFloor" label="LGD 下限 (lgd_floor) %"
+            rules={[{ required: true, message: '请输入 LGD 下限' }]}>
+            <InputNumber style={{ width: '100%' }} min={0} max={100} step={0.01} addonAfter="%" />
           </Form.Item>
         </Form>
       </Modal>

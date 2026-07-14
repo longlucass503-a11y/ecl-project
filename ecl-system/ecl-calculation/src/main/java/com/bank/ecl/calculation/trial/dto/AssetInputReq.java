@@ -26,11 +26,15 @@ public class AssetInputReq {
     private String ratingCode;
     private LocalDate maturityDate;
     // 6.4
+    /** 业务类型：ON_BS（表内）/ OFF_BS（表外） */
+    private String businessType;
     private BigDecimal outstandingBalance;
     private BigDecimal accruedInterest;
     private BigDecimal totalLimit;
     private String commitmentType;
     private Integer commitmentDays;
+    private BigDecimal amtFinancedCny;
+    private String facilityCd;
 
     public static AssetInputReq from(TrialCalculationReq req) {
         AssetInputReq r = new AssetInputReq();
@@ -50,11 +54,14 @@ public class AssetInputReq {
         r.setRatingDropLevels(req.getRatingDropLevels());
         r.setRatingCode(req.getRatingCode());
         r.setMaturityDate(req.getMaturityDate());
+        r.setBusinessType(req.getBusinessType());
         r.setOutstandingBalance(req.getOutstandingBalance());
         r.setAccruedInterest(req.getAccruedInterest());
         r.setTotalLimit(req.getTotalLimit());
         r.setCommitmentType(req.getCommitmentType());
         r.setCommitmentDays(req.getCommitmentDays());
+        r.setAmtFinancedCny(req.getAmtFinancedCny());
+        r.setFacilityCd(req.getFacilityCd());
         return r;
     }
 }

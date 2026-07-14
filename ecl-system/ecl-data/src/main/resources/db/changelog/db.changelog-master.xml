@@ -19,4 +19,5 @@
     <include file="014-drop-rating-system.sql" relativeToChangelogFile="true"/>
     <include file="015-add-job-request-payload.sql" relativeToChangelogFile="true"/>
     <include file="016-rename-risk-group-segment.sql" relativeToChangelogFile="true"/>
+    <include file="017-add-dict-tables.sql" relativeToChangelogFile="true"/>
 </databaseChangeLog>

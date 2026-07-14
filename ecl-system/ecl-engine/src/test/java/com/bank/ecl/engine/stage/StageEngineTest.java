@@ -320,7 +320,7 @@ class StageEngineTest {
         when(crrDropRuleMapper.selectList(any())).thenReturn(List.of());
 
         AssetInput asset = asset("GRP_001", Stage.STAGE_3);
-        asset.setNormalConsecutiveDays(365);
+        asset.setNormalConsecutiveDays(90);
 
         engine.execute(jobCtx("SCH_001", List.of(asset)));
 
@@ -472,4 +472,59 @@ class StageEngineTest {
         engine.execute(jobCtx("SCH_001", List.of(b)));
         assertEquals(Stage.STAGE_2, b.getStageResult().getStage());
     }
+
+    @Test
+    void shouldBlockStage3ToStage2RollbackWhenConditionNotMet() {
+        // STAGE_3 → STAGE_2 回跳条件不满足时应阻断
+        StageRuleEntity forward = forwardRule("GRP_001", 1, "STAGE_2", "{\"overdue_days\":{\"min\":31}}");
+        StageRuleEntity rollback = rollbackRule("GRP_001", "STAGE_3", "STAGE_2", "{\"normal_consecutive_days\":{\"min\":180}}");
+        when(stageRuleMapper.selectList(any())).thenReturn(List.of(forward, rollback));
+        when(crrDropRuleMapper.selectList(any())).thenReturn(List.of());
+
+        AssetInput asset = asset("GRP_001", Stage.STAGE_3);
+        asset.setOverdueDays(90);
+        asset.setNormalConsecutiveDays(90);
+
+        engine.execute(jobCtx("SCH_001", List.of(asset)));
+
+        assertEquals(Stage.STAGE_3, asset.getStageResult().getStage());
+        assertEquals("ROLLBACK_BLOCKED", asset.getStageResult().getTriggerType());
+    }
+
+    @Test
+    void shouldAllowStage3DirectRollbackToStage2WhenConditionsMet() {
+        // STAGE_3 → STAGE_2，回跳条件满足时应允许
+        // FORWARD: 逾期≥31天 → STAGE_2，asset 逾期 90 天 → 命中
+        StageRuleEntity forward = forwardRule("GRP_001", 1, "STAGE_2", "{\"overdue_days\":{\"min\":31}}");
+        StageRuleEntity rollback = rollbackRule("GRP_001", "STAGE_3", "STAGE_2", "{\"normal_consecutive_days\":{\"min\":180}}");
+        when(stageRuleMapper.selectList(any())).thenReturn(List.of(forward, rollback));
+        when(crrDropRuleMapper.selectList(any())).thenReturn(List.of());
+
+        AssetInput asset = asset("GRP_001", Stage.STAGE_3);
+        asset.setOverdueDays(90);
+        asset.setNormalConsecutiveDays(365);
+
+        engine.execute(jobCtx("SCH_001", List.of(asset)));
+
+        assertEquals(Stage.STAGE_2, asset.getStageResult().getStage());
+        assertFalse(asset.getStageResult().isExceptionFlag());
+    }
+
+    @Test
+    void shouldHandleMultipleForwardRulesFromDifferentGroups() {
+        // 多分组规则：资产只能匹配自己分组的规则
+        StageRuleEntity fRule1 = forwardRule("GRP_001", 1, "STAGE_2", "{\"overdue_days\":{\"min\":31}}");
+        StageRuleEntity fRule2 = forwardRule("GRP_002", 1, "STAGE_3", "{\"overdue_days\":{\"min\":61}}");
+        when(stageRuleMapper.selectList(any())).thenReturn(List.of(fRule1, fRule2));
+        when(crrDropRuleMapper.selectList(any())).thenReturn(List.of());
+
+        AssetInput asset = asset("GRP_001", Stage.STAGE_1);
+        asset.setOverdueDays(90);
+
+        engine.execute(jobCtx("SCH_001", List.of(asset)));
+
+        // GRP_001 只有 STAGE_2 规则，不应命中 GRP_002 的 STAGE_3 规则
+        assertEquals(Stage.STAGE_2, asset.getStageResult().getStage());
+    }
+
 }

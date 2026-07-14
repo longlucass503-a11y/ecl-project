@@ -18,6 +18,7 @@ import { useSearchParams, useOutletContext } from 'react-router-dom';
 import { schemeApi, type SchemeVO } from '../../api/scheme';
 import { riskGroupApi, type RiskGroupVO } from '../../api/riskGroup';
 import { lgdApi, type LgdCurveVO, type LgdCollateralDiscountVO, type LgdDepreciationVO } from '../../api/lgd';
+import { dictApi, type DictEntryVO } from '../../api/dict';
 import { PageHeader, Panel, GroupSelector } from '../../components';
 
 /* ===================================================================
@@ -33,6 +34,9 @@ const BenchmarkCurveTab: React.FC<{
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<LgdCurveVO | null>(null);
   const [form] = Form.useForm();
+  const [dictCollateral, setDictCollateral] = useState<DictEntryVO[]>([]);
+  const [dictProductType, setDictProductType] = useState<DictEntryVO[]>([]);
+  const [dictCollateralCategory, setDictCollateralCategory] = useState<DictEntryVO[]>([]);
 
   useEffect(() => {
     if (!selectedSchemeId) {
@@ -43,8 +47,35 @@ const BenchmarkCurveTab: React.FC<{
     riskGroupApi.listByScheme(selectedSchemeId).then((res) => {
       setGroups((res.data as any)?.data || res.data || []);
     });
+    loadDictOptions(selectedSchemeId);
     setSelectedGroupId('');
   }, [selectedSchemeId]);
+
+  const loadDictOptions = useCallback(async (schemeId: string) => {
+    try {
+      const [colRes, prodRes, catRes] = await Promise.all([
+        dictApi.getEffectiveEntries(schemeId, 'COLLATERAL_TYPE'),
+        dictApi.getEffectiveEntries(schemeId, 'PRODUCT_TYPE'),
+        dictApi.getEffectiveEntries(schemeId, 'COLLATERAL_CATEGORY'),
+      ]);
+      setDictCollateral((colRes.data as any)?.data || colRes.data || []);
+      setDictProductType((prodRes.data as any)?.data || prodRes.data || []);
+      setDictCollateralCategory((catRes.data as any)?.data || catRes.data || []);
+    } catch (err) {
+      console.error('加载字典选项失败', err);
+    }
+  }, []);
+
+  // 加载字典
+  useEffect(() => {
+    if (selectedSchemeId) {
+      loadDictOptions(selectedSchemeId);
+    } else {
+      setDictCollateral([]);
+      setDictProductType([]);
+      setDictCollateralCategory([]);
+    }
+  }, [selectedSchemeId, loadDictOptions]);
 
   const load = useCallback(async () => {
     if (!selectedSchemeId || !selectedGroupId) {
@@ -71,8 +102,12 @@ const BenchmarkCurveTab: React.FC<{
       return;
     }
     const nextCurves = editing
-      ? curves.map((curve) => (curve.curveId === editing.curveId ? { ...curve, ...values } : curve))
-      : [...curves, { ...values, schemeId: selectedSchemeId, groupId: selectedGroupId, curveId: `tmp_${Date.now()}` }];
+      ? curves.map((curve) =>
+          curve.curveId === editing.curveId
+            ? { collateralType: values.collateralType, productType: values.productType || '', lgdBaseValue: +(values.lgdBaseValue / 100).toFixed(6) }
+            : { collateralType: curve.collateralType, productType: curve.productType, lgdBaseValue: curve.lgdBaseValue }
+        )
+      : [...curves, { ...values, lgdBaseValue: +(values.lgdBaseValue / 100).toFixed(6), schemeId: selectedSchemeId, groupId: selectedGroupId, curveId: `tmp_${Date.now()}` }];
     await lgdApi.batchSaveCurves(
       selectedSchemeId,
       selectedGroupId,
@@ -203,7 +238,7 @@ const BenchmarkCurveTab: React.FC<{
         <thead>
           <tr>
             <th>担保类型</th>
-            <th>产品类型</th>
+            <th>产品类型<br/><span style={{fontSize:10,fontWeight:400,color:'#999'}}>空=全集</span></th>
             <th>LGD 基准值</th>
             <th style={{ width: 120 }}>操作</th>
           </tr>
@@ -212,12 +247,12 @@ const BenchmarkCurveTab: React.FC<{
           {curves.map((c) => (
             <tr key={c.curveId}>
               <td>{c.collateralType}</td>
-              <td>{c.productType}</td>
+              <td>{c.productType || <span style={{ color: 'var(--color-text-muted)' }}>全集 *</span>}</td>
               <td>{(c.lgdBaseValue * 100).toFixed(4)}%</td>
               <td>
                 <Space>
                   <Button type="link" size="small" icon={<EditOutlined />}
-                    onClick={() => { setEditing(c); form.setFieldsValue(c); setModalOpen(true); }} />
+                    onClick={() => { setEditing(c); form.setFieldsValue({ ...c, lgdBaseValue: c.lgdBaseValue != null ? +(c.lgdBaseValue * 100).toFixed(4) : 0 }); setModalOpen(true); }} />
                   <Button type="link" size="small" danger icon={<DeleteOutlined />}
                     onClick={() => handleDelete(c.curveId!)} />
                 </Space>
@@ -239,17 +274,19 @@ const BenchmarkCurveTab: React.FC<{
         onCancel={() => { setModalOpen(false); form.resetFields(); }}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="collateralType" label="担保类型" rules={[{ required: true, message: '请输入担保类型' }]}>
-            <Input placeholder="如：MORTGAGE, PLEDGE" />
+          <Form.Item name="collateralType" label="担保类型" rules={[{ required: true, message: '请选择担保类型' }]}>
+            <Select placeholder="请选择担保类型" allowClear showSearch
+              options={dictCollateral.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
           </Form.Item>
-          <Form.Item name="productType" label="产品类型" rules={[{ required: true, message: '请输入产品类型' }]}>
-            <Input placeholder="如：LOAN, BOND" />
+          <Form.Item name="productType" label="产品类型">
+            <Select placeholder="为空=全集（不限制）" allowClear showSearch
+              options={dictProductType.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
           </Form.Item>
-          <Form.Item name="lgdBaseValue" label="LGD 基准值" rules={[
+          <Form.Item name="lgdBaseValue" label="LGD 基准值 (%)" rules={[
             { required: true, message: '请输入 LGD 基准值' },
-            { type: 'number', min: 0, max: 1, message: '范围 0 ~ 1' },
+            { type: 'number', min: 0, max: 100, message: '范围 0 ~ 100' },
           ]}>
-            <InputNumber min={0} max={1} step={0.0001} style={{ width: '100%' }} placeholder="0 ~ 1 之间的小数" />
+            <InputNumber min={0} max={100} step={0.01} style={{ width: '100%' }} placeholder="如：45" addonAfter="%" />
           </Form.Item>
         </Form>
       </Modal>
@@ -268,6 +305,35 @@ const CollateralDiscountTab: React.FC<{
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<LgdCollateralDiscountVO | null>(null);
   const [form] = Form.useForm();
+  const [dictCollateral, setDictCollateral] = useState<DictEntryVO[]>([]);
+  const [dictProductType, setDictProductType] = useState<DictEntryVO[]>([]);
+  const [dictCollateralCategory, setDictCollateralCategory] = useState<DictEntryVO[]>([]);
+
+  const loadDictOptions = useCallback(async (schemeId: string) => {
+    try {
+      const [colRes, prodRes, catRes] = await Promise.all([
+        dictApi.getEffectiveEntries(schemeId, 'COLLATERAL_TYPE'),
+        dictApi.getEffectiveEntries(schemeId, 'PRODUCT_TYPE'),
+        dictApi.getEffectiveEntries(schemeId, 'COLLATERAL_CATEGORY'),
+      ]);
+      setDictCollateral((colRes.data as any)?.data || colRes.data || []);
+      setDictProductType((prodRes.data as any)?.data || prodRes.data || []);
+      setDictCollateralCategory((catRes.data as any)?.data || catRes.data || []);
+    } catch (err) {
+      console.error('加载字典选项失败', err);
+    }
+  }, []);
+
+  // 加载字典
+  useEffect(() => {
+    if (selectedSchemeId) {
+      loadDictOptions(selectedSchemeId);
+    } else {
+      setDictCollateral([]);
+      setDictProductType([]);
+      setDictCollateralCategory([]);
+    }
+  }, [selectedSchemeId, loadDictOptions]);
 
   const load = useCallback(async () => {
     if (!selectedSchemeId) return;
@@ -284,14 +350,14 @@ const CollateralDiscountTab: React.FC<{
 
   const handleSave = async () => {
     const values = await form.validateFields();
-    // 校验 discountRate 0~1
-    if (values.discountRate < 0 || values.discountRate > 1) {
-      message.error('折扣率范围必须在 0 ~ 1 之间');
-      return;
-    }
+
     const nextList = editing
-      ? list.map((item) => (item.discountId === editing.discountId ? { ...item, ...values } : item))
-      : [...list, { ...values, schemeId: selectedSchemeId, discountId: `tmp_${Date.now()}` }];
+      ? list.map((item) =>
+          item.discountId === editing.discountId
+            ? { collateralCategory: values.collateralCategory, collateralType: values.collateralType, discountRate: +(values.discountRate / 100).toFixed(4) }
+            : { collateralCategory: item.collateralCategory, collateralType: item.collateralType, discountRate: item.discountRate }
+        )
+      : [...list, { collateralCategory: values.collateralCategory, collateralType: values.collateralType, discountRate: +(values.discountRate / 100).toFixed(4), schemeId: selectedSchemeId, discountId: `tmp_${Date.now()}` }];
     await lgdApi.batchSaveDiscounts(
       selectedSchemeId,
       nextList.map((item) => ({
@@ -360,7 +426,7 @@ const CollateralDiscountTab: React.FC<{
       width: 120,
       render: (_: any, record: LgdCollateralDiscountVO) => (
         <Space>
-          <Button type="link" icon={<EditOutlined />} onClick={() => { setEditing(record); form.setFieldsValue(record); setModalOpen(true); }} />
+          <Button type="link" icon={<EditOutlined />} onClick={() => { setEditing(record); form.setFieldsValue({ ...record, lgdBaseValue: record.lgdBaseValue != null ? +(record.lgdBaseValue * 100).toFixed(4) : 0 }); setModalOpen(true); }} />
           <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.discountId!)} />
         </Space>
       ),
@@ -391,7 +457,7 @@ const CollateralDiscountTab: React.FC<{
               <td>
                 <Space>
                   <Button type="link" size="small" icon={<EditOutlined />}
-                    onClick={() => { setEditing(d); form.setFieldsValue(d); setModalOpen(true); }} />
+                    onClick={() => { setEditing(d); form.setFieldsValue({ ...d, discountRate: d.discountRate != null ? +(d.discountRate * 100).toFixed(2) : 0 }); setModalOpen(true); }} />
                   <Button type="link" size="small" danger icon={<DeleteOutlined />}
                     onClick={() => handleDelete(d.discountId!)} />
                 </Space>
@@ -411,23 +477,25 @@ const CollateralDiscountTab: React.FC<{
         onCancel={() => { setModalOpen(false); form.resetFields(); }}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="collateralCategory" label="押品大类" rules={[{ required: true, message: '请输入押品大类' }]}>
-            <Input placeholder="如：REAL_ESTATE, EQUIPMENT" />
+          <Form.Item name="collateralCategory" label="押品大类" rules={[{ required: true, message: '请选择押品大类' }]}>
+            <Select placeholder="请选择押品大类" allowClear showSearch
+              options={dictCollateralCategory.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
           </Form.Item>
-          <Form.Item name="collateralType" label="押品类型" rules={[{ required: true, message: '请输入押品类型' }]}>
-            <Input placeholder="如：RESIDENTIAL, MACHINE" />
+          <Form.Item name="collateralType" label="押品类型" rules={[{ required: true, message: '请选择押品类型' }]}>
+            <Select placeholder="请选择押品类型" allowClear showSearch
+              options={dictCollateral.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
           </Form.Item>
           <Form.Item
             name="discountRate"
-            label="折扣率"
+            label="折扣率 (%)"
             rules={[
               { required: true, message: '请输入折扣率' },
-              { type: 'number', min: 0, max: 1, message: '折扣率范围 0 ~ 1' },
+              { type: 'number', min: 0, max: 100, message: '折扣率范围 0 ~ 100' },
             ]}
           >
-            <InputNumber min={0} max={1} step={0.01} style={{ width: '100%' }} placeholder="0 ~ 1 之间的小数" />
+            <InputNumber min={0} max={100} step={0.1} style={{ width: '100%' }} placeholder="如：70" addonAfter="%" />
           </Form.Item>
-          <Typography.Text type="secondary">校验规则：折扣率 0 ~ 1</Typography.Text>
+          <Typography.Text type="secondary">校验规则：折扣率 0% ~ 100%</Typography.Text>
         </Form>
       </Modal>
     </>

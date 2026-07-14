@@ -309,6 +309,7 @@ const TrialCenter: React.FC = () => {
   // ---- Submit ------------------------------------------------------------
   const handleRunTrial = async () => {
     if (!selectedSchemeId) { message.warning('请选择方案'); return; }
+    if (!calcDate) { message.warning('请选择计算日期'); return; }
     setLoading(true);
     try {
       const res = await trialApi.runTrial({
@@ -326,7 +327,11 @@ const TrialCenter: React.FC = () => {
       });
       setResult((res.data as any)?.data || res.data);
       message.success(`试算完成 · ${loans.length} 笔借据`);
-    } catch (err) { console.error(err); message.error('试算失败'); }
+    } catch (err: any) {
+      console.error('试算失败:', err);
+      const errMsg = err?.response?.data?.message || err?.message || '未知错误';
+      message.error('试算失败: ' + errMsg);
+    }
     finally { setLoading(false); }
   };
 

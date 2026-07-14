@@ -7,7 +7,7 @@ spring:
     url: jdbc:mysql://localhost:3306/ecl?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
-    password: root
+    password: Root@123
   h2:
     console:
       enabled: true

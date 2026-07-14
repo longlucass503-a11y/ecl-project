@@ -29,6 +29,9 @@ public class SchemeCopyService {
 
     @Transactional(rollbackFor = Exception.class)
     public void copyAll(String sourceSchemeId, String targetSchemeId) {
+        if (sourceSchemeId.equals(targetSchemeId)) {
+            throw new IllegalArgumentException("sourceSchemeId [" + sourceSchemeId + "] 与 targetSchemeId 相同，不允许自复制");
+        }
         // 1. 复制 risk_group：建立 oldGroupId → newGroupId 映射
         List<RiskGroupEntity> groups = riskGroupMapper.selectList(
                 new LambdaQueryWrapper<RiskGroupEntity>().eq(RiskGroupEntity::getSchemeId, sourceSchemeId));
@@ -138,7 +141,11 @@ public class SchemeCopyService {
         for (OverlayRuleEntity o : overlays) {
             o.setRuleId(null);
             o.setSchemeId(targetSchemeId);
-            o.setGroupId(groupIdMapping.get(o.getGroupId()));
+            // GLOBAL 规则的 groupId 是空字符串（非真实分组ID），不应查 groupIdMapping（会得到null，
+            // 而 group_id 列是 NOT NULL），原样保留；只有非空的分组级规则才需要重映射到新分组ID。
+            if (o.getGroupId() != null && !o.getGroupId().isBlank()) {
+                o.setGroupId(groupIdMapping.get(o.getGroupId()));
+            }
             overlayRuleMapper.insert(o);
         }
     }

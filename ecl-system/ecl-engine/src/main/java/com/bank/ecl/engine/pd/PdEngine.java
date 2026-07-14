@@ -65,17 +65,19 @@ public class PdEngine implements EclEngine {
         String groupId = asset.getGroupId();
         StageResult sr = asset.getStageResult();
         Stage stage = sr != null ? sr.getStage() : Stage.STAGE_1;
-
-        // 到期日为空或不晚于计量日时阻断；Stage3 也必须先通过期限校验。
-        if (asset.getMaturityDate() == null
-                || asset.getCalcDate() == null
-                || !asset.getMaturityDate().isAfter(asset.getCalcDate())) {
+        // 到期日为空则阻断（数据缺失）；已过期不走阻断，由存续期转换兜底。
+        // Stage 2 存续期转换有 Math.max(months/12, 1.0) 兜底，
+        // Stage 3 不查曲线直接取 1.0，均无需到期日校验。
+        if (asset.getMaturityDate() == null || asset.getCalcDate() == null) {
             asset.setPdException("ECL_001");
             return;
         }
 
         // Resolve rating source based on group
         RatingSelection rating = resolveRatingSource(asset);
+        log.info("[6.3 PD DEBUG] asset={} group={} agency={} code={} crrFinal={} extAgency={} extRating={}",
+                asset.getAssetId(), asset.getGroupId(), rating.ratingAgency, rating.ratingCode,
+                asset.getCrrFinal(), asset.getExtRatingCoThisYear(), asset.getExtRatingThisYear());
         String ratingAgency = rating.ratingAgency;
         String ratingCode = rating.ratingCode;
 
@@ -98,9 +100,17 @@ public class PdEngine implements EclEngine {
                         + normalizeRatingAgency(ratingAgency) + "|" + ratingCode;
                 Double cached = cache.get(key);
                 if (cached == null) {
-                    hasMissing = true;
-                    continue;
+                    // 外评未命中，回退到内评
+                    String internalKey = groupId + "|" + s.getScenarioId() + "|"
+                            + "INTERNAL_CRR" + "|" + asset.getCrrFinal();
+                    log.info("[6.3 PD DEBUG] fallback to internal key={}|...", internalKey.substring(0, Math.min(internalKey.length(), 60)));
+                cached = cache.get(internalKey);
+                    if (cached == null) {
+                        hasMissing = true;
+                        continue;
+                    }
                 }
+                log.info("[6.3 PD DEBUG] cache HIT key={}|...", key.substring(0, Math.min(key.length(), 60)));
                 rawPdValue = cached;
                 effectivePdValue = convertByStage(rawPdValue, stage, asset.getMaturityDate(), asset.getCalcDate());
             }
@@ -135,12 +145,15 @@ public class PdEngine implements EclEngine {
     private record RatingSelection(String ratingAgency, String ratingCode) {}
 
     private RatingSelection resolveRatingSource(AssetInput asset) {
-        String groupId = asset.getGroupId();
-        if (Set.of("GRP_003", "GRP_004").contains(groupId)) {
-            return new RatingSelection(
-                    asset.getExtRatingCoThisYear(),
-                    asset.getExtRatingThisYear());
+        // 按资产实际填充的评级数据判断走内评还是外评路径，
+        // 而非按分组ID硬编码（分组ID是数据库生成的UUID，不会等于任何固定字符串，此前的分组ID判断永远不可达）。
+        String extAgency = asset.getExtRatingCoThisYear();
+        String extRating = asset.getExtRatingThisYear();
+        if (extAgency != null && !extAgency.isBlank()
+                && extRating != null && !extRating.isBlank()) {
+            return new RatingSelection(extAgency, extRating);
         }
+        // 默认使用内部评级
         return new RatingSelection(
                 "INTERNAL_CRR",
                 asset.getCrrFinal());
