@@ -119,8 +119,8 @@ public class LgdEngine implements EclEngine {
                 // 折旧率是负数(减值),1+折旧率<1; 折扣率是认可率,直接乘
                 double netValue = appVal * (1 + depreciationRate) * discountRate;
 
-                // 押品覆盖部分直接取Floor LGD，不再查风险分组曲线（风险分组曲线只用于资产层级/未覆盖部分）
-                double collLgd = lookupCollateralFloor(collType, lgdFloor);
+                // Look up LGD for this collateral type within the pool's group
+                double collLgd = lookupLgdByType(groupId, collType, firstAsset.getProductType(), curveCache, defaultLgd);
 
                 collValues.add(new double[]{netValue, collLgd});
             }
@@ -186,16 +186,22 @@ public class LgdEngine implements EclEngine {
         a.setLgdValue(lgd);
     }
 
-    /**
-     * 押品覆盖部分的LGD = Floor LGD（监管下限），按押品细类判断：
-     * 现金类押品下限为0；其余押品类型（房产/土地/设备/车辆/存货/国债/存单/票据/保证等）统一取方案配置的 lgd_floor。
-     * 不查风险分组曲线——曲线是按业务风险分组划分的资产层级维度，跟押品自身类型是两回事（见试算测试记录第18轮）。
-     */
-    private double lookupCollateralFloor(String collType, double lgdFloor) {
-        if (collType != null && collType.contains("现金")) {
-            return 0.0;
+    private double lookupLgdByType(String groupId, String collType, String prodType, Map<String, Double> cache, double defaultLgd) {
+        // 1. exact match: groupId|collateralType|productType（productType 取自池内第一笔资产，池内曲线不区分资产）
+        String exactKey = groupId + "|" + collType + "|" + (prodType != null ? prodType : "");
+        Double lgd = cache.get(exactKey);
+
+        // 2. Fallback: 忽略 productType（兼容曲线中 productType 为空串的情况）
+        if (lgd == null) {
+            String fallbackKey = groupId + "|" + collType + "|";
+            lgd = cache.get(fallbackKey);
         }
-        return lgdFloor;
+
+        // 3. scheme default
+        if (lgd == null) {
+            lgd = defaultLgd;
+        }
+        return lgd;
     }
 
     private double lookupLgdForGroup(AssetInput a, Map<String, Double> cache, double defaultLgd) {
