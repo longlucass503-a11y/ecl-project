@@ -10,6 +10,7 @@ public class LgdCurveVO {
     private String schemeId;
     private String groupId;
     private String collateralType;
+    private String collateralCategory;
     private String productType;
     private BigDecimal lgdBaseValue;
 }

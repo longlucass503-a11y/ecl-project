@@ -173,6 +173,7 @@ public class LgdServiceImpl implements LgdService {
         vo.setSchemeId(entity.getSchemeId());
         vo.setGroupId(entity.getGroupId());
         vo.setCollateralType(entity.getCollateralType());
+        vo.setCollateralCategory(entity.getCollateralCategory());
         vo.setProductType(entity.getProductType());
         vo.setLgdBaseValue(entity.getLgdBaseValue());
         return vo;
@@ -183,6 +184,7 @@ public class LgdServiceImpl implements LgdService {
         entity.setSchemeId(schemeId);
         entity.setGroupId(groupId);
         entity.setCollateralType(req.getCollateralType());
+        entity.setCollateralCategory(req.getCollateralCategory());
         entity.setProductType(req.getProductType());
         entity.setLgdBaseValue(req.getLgdBaseValue());
         return entity;

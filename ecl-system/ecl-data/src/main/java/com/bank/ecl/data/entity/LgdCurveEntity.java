@@ -20,6 +20,8 @@ public class LgdCurveEntity {
 
     private String collateralType;
 
+    private String collateralCategory;
+
     private String productType;
 
     private BigDecimal lgdBaseValue;

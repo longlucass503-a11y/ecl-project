@@ -22,6 +22,7 @@ export interface LgdCurveVO {
   schemeId: string;
   groupId?: string;
   collateralType: string;
+  collateralCategory?: string;
   productType: string;
   lgdBaseValue: number;
   createdAt?: string;

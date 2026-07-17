@@ -44,6 +44,7 @@ public class LgdController {
                     createReq.setSchemeId(req.getSchemeId());
                     createReq.setGroupId(req.getGroupId());
                     createReq.setCollateralType(item.getCollateralType());
+                    createReq.setCollateralCategory(item.getCollateralCategory());
                     createReq.setProductType(item.getProductType());
                     createReq.setLgdBaseValue(item.getLgdBaseValue());
                     return createReq;
