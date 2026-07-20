@@ -178,6 +178,9 @@ public class AssetInput {
     /** 授信总额 */
     private java.math.BigDecimal totalLimit;
 
+    /** 借据自己的利率（表内EAD折现优先用这个，没有则退回方案统一折现率，见EadEngine.processOnBsEad） */
+    private java.math.BigDecimal interestRate;
+
     /** 承诺类型 */
     private String commitmentType;
 

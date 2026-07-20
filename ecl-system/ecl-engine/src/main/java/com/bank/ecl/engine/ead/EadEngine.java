@@ -59,12 +59,24 @@ public class EadEngine implements EclEngine {
 
     // ========== On-balance EAD ==========
 
+    /**
+     * 2026-07-17改动：表内EAD折现优先用借据自己的利率(asset.getInterestRate())，
+     * 借据没有这个字段(null)时才退回方案统一折现率(discountRate)——
+     * 原来不管借据自己利率是多少，全都用方案统一折现率，跟手动验算方法论
+     * (优先借据自己利率)对不上，见"试算测试记录.md"第21轮。
+     */
     private void processOnBsEad(AssetInput asset, double discountRate) {
         if (isOffBalance(asset)) {
             asset.setOnBsEad(0.0);
             asset.setEadBreakdown("{\"type\":\"OFF_BS\"}");
             return;
         }
+
+        // 借据自己的利率跟方案discount_rate是同一种"可能存百分数(4.85)也可能存小数(0.0485)"的口径，
+        // 必须做同样的归一化，否则4.85会被当成485%直接拿去算(1+4.85)^t，把EAD压得远低于实际值。
+        double rate = asset.getInterestRate() != null
+                ? normalizeRate(asset.getInterestRate().doubleValue())
+                : discountRate;
 
         List<RepaymentScheduleInput> schedules = asset.getRepaymentSchedules();
         if (schedules != null && !schedules.isEmpty() && asset.getCalcDate() != null) {
@@ -77,13 +89,13 @@ public class EadEngine implements EclEngine {
                     double interest = toDouble(s.getDueInterest());
                     double amount = principal + interest;
                     double years = calcYearsAct365(asset.getCalcDate(), s.getDueDate());
-                    double discounted = amount / Math.pow(1 + discountRate, years);
+                    double discounted = amount / Math.pow(1 + rate, years);
                     sum += discounted;
                     futurePeriods++;
                 }
             }
             asset.setOnBsEad(sum);
-            asset.setEadBreakdown("{\"futurePeriods\":" + futurePeriods + "}");
+            asset.setEadBreakdown("{\"futurePeriods\":" + futurePeriods + ",\"discountRate\":" + rate + "}");
         } else {
             double onBsEad = toDouble(asset.getOutstandingBalance()) + toDouble(asset.getAccruedInterest());
             asset.setOnBsEad(onBsEad);
@@ -227,6 +239,9 @@ public class EadEngine implements EclEngine {
     }
 
     private double toDouble(BigDecimal v) { return v != null ? v.doubleValue() : 0.0; }
+
+    /** 兼容百分比(4.85)和小数(0.0485)两种存储格式，跟TrialCalculationService.normalizeDiscountRate同一口径 */
+    private double normalizeRate(double rate) { return rate > 1 ? rate / 100.0 : rate; }
 
     /**
      * ACT/365 天数惯例：实际天数 ÷ 365。

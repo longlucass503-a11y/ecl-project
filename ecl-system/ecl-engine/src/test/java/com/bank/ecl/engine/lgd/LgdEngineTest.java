@@ -68,6 +68,7 @@ class LgdEngineTest {
     }
 
     @Test void shouldMatchExactCurve() {
+        // 无押品池资产按贷款自己声明的担保方式(collateralType)查曲线
         LgdCurveEntity c = curve("GRP_001", "房产", "公司贷款", 0.35);
         when(lgdCurveMapper.selectList(any())).thenReturn(List.of(c));
         AssetInput a = asset("GRP_001", "房产", "公司贷款");
@@ -79,7 +80,7 @@ class LgdEngineTest {
     @Test void shouldFallbackToNoneWhenExactMissing() {
         LgdCurveEntity c = curve("GRP_001", "NONE", "公司贷款", 0.40);
         when(lgdCurveMapper.selectList(any())).thenReturn(List.of(c));
-        AssetInput a = asset("GRP_001", "信用", "公司贷款"); // "信用" 无匹配 → NONE
+        AssetInput a = asset("GRP_001", "信用", "公司贷款"); // 曲线没有"信用"这一行，应退化到NONE
         engine.execute(ctx("SCH_001", 0.45, a));
         assertEquals(0.40, a.getLgdValue(), 0.0001);
     }

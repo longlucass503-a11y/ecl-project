@@ -126,6 +126,7 @@ class TrialSourceAssemblerTest {
         assertEquals("FAC_001", actualAsset.getFacilityCd());
         assertEquals("POOL_001", actualAsset.getCollateralPoolId());
         assertEquals(new BigDecimal("1200000"), actualAsset.getTotalLimit());
+        assertEquals(new BigDecimal("0.045"), actualAsset.getInterestRate());
         assertEquals("不可撤销", actualAsset.getCommitmentType());
         assertTrue(actualAsset.getCommitmentDays() > 0);
         assertEquals(Stage.STAGE_2, actualAsset.getLastStage());

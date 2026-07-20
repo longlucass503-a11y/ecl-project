@@ -106,14 +106,16 @@ public class LgdEngine implements EclEngine {
                 if (coll == null || coll.getAppraisalValue() == null) continue;
                 double appVal = coll.getAppraisalValue().doubleValue();
 
-                // Discount key: use collateralType (MORTGAGE/PLEDGE) as both category and type
-                // DB stores discount by "MORTGAGE|MORTGAGE", not "不动产|MORTGAGE"
+                // Discount key: 押品大类(collateralCategory) + 押品类型(collateralType)，
+                // 与 buildDiscountCache() 建缓存时的 key 结构保持一致(第248行)
                 String collType = coll.getCollateralType();
-                String discountKey = nullSafeKey(collType, collType);
+                String discountKey = nullSafeKey(coll.getCollateralCategory(), collType);
                 double discountRate = discountCache.getOrDefault(discountKey, 0.0); // 认可率,直接乘
 
-                // Find depreciation rate by (collateralType, yearOffset=0)
-                String depKey = nullSafeKey(collType, 0);
+                // Find depreciation rate by (collateralCategory, yearOffset=0)
+                // 物理折旧本质是押品大类(房产/设备/车辆等)的属性，不是担保方式(押品类型)的属性，
+                // 用押品大类去查才对得上"基础信息-押品大类"这套字典
+                String depKey = nullSafeKey(coll.getCollateralCategory(), 0);
                 double depreciationRate = depreciationCache.getOrDefault(depKey, 0.0);
 
                 // 公式: 评估价值 × (1 + 折旧率) × 折价认可率
@@ -121,7 +123,8 @@ public class LgdEngine implements EclEngine {
                 double netValue = appVal * (1 + depreciationRate) * discountRate;
 
                 // Look up LGD for this collateral type within the pool's group
-                double collLgd = lookupLgdByType(groupId, collType, curveCache, defaultLgd);
+                double collLgd = lookupLgdByType(groupId, collType, coll.getCollateralCategory(),
+                        firstAsset.getProductType(), curveCache, defaultLgd);
 
                 collValues.add(new double[]{netValue, collLgd});
             }
@@ -150,9 +153,11 @@ public class LgdEngine implements EclEngine {
         }
 
         // Uncovered portion uses weighted average LGD across all pool assets (by EAD)
+        // 未覆盖部分 = 押品净值覆盖不到的EAD，名义上没有任何押品价值支撑，按"信用/无担保(CREDIT)"定价，
+        // 不用贷款自己声明的担保方式(比如MORTGAGE)——那是这笔贷款整体的担保方式，不代表这一截未被覆盖的EAD还有抵押物撑着。
         double weightedLgdUncovered = 0.0;
         for (AssetInput a : poolAssets) {
-            double assetLgd = lookupLgdForGroup(a, curveCache, defaultLgd);
+            double assetLgd = lookupLgdUncoveredForPool(a, curveCache, defaultLgd);
             weightedLgdUncovered += a.getTotalEad() * assetLgd;
         }
         double lgdUncovered = eadTotal > 0 ? weightedLgdUncovered / eadTotal : defaultLgd;
@@ -165,6 +170,9 @@ public class LgdEngine implements EclEngine {
         } else {
             lgdPool = lgdUncovered;
         }
+        // 2026-07-17改动：lgdFloor此前只是签名里收了个参数、方法体里没实际用过，
+        // 方案配置的LGD楼层值(如10%)形同虚设。现在真正生效：加权结果不能低于楼层值。
+        lgdPool = Math.max(lgdPool, lgdFloor);
 
         // Build JSON detail with allocation info
         String lgdDetails = String.format(
@@ -187,36 +195,97 @@ public class LgdEngine implements EclEngine {
         a.setLgdValue(lgd);
     }
 
-    private double lookupLgdByType(String groupId, String collType, Map<String, Double> cache, double defaultLgd) {
-        // Same key format as lookupLgdForGroup but with explicit collateral type
-        // Key: groupId|collateralType|  (ignoring productType)
-        String key = groupId + "|" + collType + "|";
-        Double lgd = cache.get(key);
+    /**
+     * 押品层级LGD查询（押品覆盖部分）：风险分组 + 押品自身担保类型 + 押品大类 + 产品类型，4维匹配，逐级降级。
+     * 押品大类(collateralCategory)只有押品自己有，资产/贷款没有这个概念，所以只在这个方法里用，
+     * 不影响 lookupLgdForGroup（资产层级/未覆盖部分）的3维匹配。
+     */
+    private double lookupLgdByType(String groupId, String collType, String category, String prodType,
+                                    Map<String, Double> cache, double defaultLgd) {
+        String c = category != null ? category : "";
+        String p = prodType != null ? prodType : "";
+
+        // 1. 精确匹配: groupId|collateralType|collateralCategory|productType
+        Double lgd = cache.get(groupId + "|" + collType + "|" + c + "|" + p);
+
+        // 2. 降级: 保留押品大类，忽略产品类型
+        if (lgd == null) {
+            lgd = cache.get(groupId + "|" + collType + "|" + c + "|");
+        }
+
+        // 3. 降级: 忽略押品大类，退回原来只按"担保类型+产品类型"配的曲线行（押品大类留空的那些行）
+        if (lgd == null) {
+            lgd = cache.get(groupId + "|" + collType + "||" + p);
+        }
+
+        // 4. 降级: 押品大类、产品类型都忽略
+        if (lgd == null) {
+            lgd = cache.get(groupId + "|" + collType + "||");
+        }
+
+        // 5. 方案兜底
         if (lgd == null) {
             lgd = defaultLgd;
         }
         return lgd;
     }
 
+    /**
+     * 2026-07-17改动回退：不再固定按CREDIT查，改回按贷款自己声明的担保类型
+     * (a.getCollateralType())匹配——用户确认无押品池场景下应尊重贷款自己声明的担保方式，
+     * 不强制视同信用/无担保。CREDIT只在NONE路径降级里作为口径兜底，不再是首选。
+     */
     private double lookupLgdForGroup(AssetInput a, Map<String, Double> cache, double defaultLgd) {
         String groupId = a.getGroupId();
         String collType = a.getCollateralType();
         String prodType = a.getProductType();
+        String p = prodType != null ? prodType : "";
 
-        // 1. exact match
-        String exactKey = groupId + "|" + collType + "|" + prodType;
-        Double lgd = cache.get(exactKey);
+        // 资产/贷款没有"押品大类"概念，固定按空白类别匹配曲线里"押品大类"留空的那些行，3维不变
+
+        // 1. exact match: groupId|贷款自己声明的担保类型|productType
+        Double lgd = cache.get(groupId + "|" + collType + "||" + p);
 
         // 2. NONE path
         if (lgd == null) {
-            String noneKey = groupId + "|NONE|" + prodType;
-            lgd = cache.get(noneKey);
+            lgd = cache.get(groupId + "|NONE||" + p);
         }
 
-        // 3. Fallback: 忽略 productType（兼容曲线中 productType 为空串的情况）
+        // 3. Fallback: 忽略 productType
         if (lgd == null && collType != null) {
-            String fallbackKey = groupId + "|" + collType + "|";
-            lgd = cache.get(fallbackKey);
+            lgd = cache.get(groupId + "|" + collType + "||");
+        }
+
+        // 4. scheme default
+        if (lgd == null) {
+            lgd = defaultLgd;
+            a.setLgdException("WARN");
+        }
+
+        return lgd;
+    }
+
+    /**
+     * 押品池"未覆盖部分"专用：不用贷款自己声明的担保方式，固定按 CREDIT(信用/无担保) 查曲线，
+     * 因为这部分EAD已经没有押品净值撑着，名义上就是无担保状态，跟贷款整体的担保方式(如MORTGAGE)是两回事。
+     * 其余逻辑(3维、降级顺序)跟 lookupLgdForGroup 完全一致，只是担保类型固定成 CREDIT。
+     */
+    private double lookupLgdUncoveredForPool(AssetInput a, Map<String, Double> cache, double defaultLgd) {
+        String groupId = a.getGroupId();
+        String prodType = a.getProductType();
+        String p = prodType != null ? prodType : "";
+
+        // 1. exact match: groupId|CREDIT||productType
+        Double lgd = cache.get(groupId + "|CREDIT||" + p);
+
+        // 2. NONE path
+        if (lgd == null) {
+            lgd = cache.get(groupId + "|NONE||" + p);
+        }
+
+        // 3. Fallback: 忽略 productType
+        if (lgd == null) {
+            lgd = cache.get(groupId + "|CREDIT||");
         }
 
         // 4. scheme default
@@ -234,7 +303,9 @@ public class LgdEngine implements EclEngine {
                         .eq(LgdCurveEntity::getSchemeId, schemeId));
         if (curves == null) return Collections.emptyMap();
         return curves.stream().collect(Collectors.toMap(
-                c -> c.getGroupId() + "|" + c.getCollateralType() + "|" + c.getProductType(),
+                c -> c.getGroupId() + "|" + c.getCollateralType() + "|"
+                        + (c.getCollateralCategory() != null ? c.getCollateralCategory() : "") + "|"
+                        + (c.getProductType() != null ? c.getProductType() : ""),
                 c -> c.getLgdBaseValue() != null ? c.getLgdBaseValue().doubleValue() : 0.0,
                 (a, b) -> a));
     }

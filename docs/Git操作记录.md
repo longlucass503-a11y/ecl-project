@@ -10,3 +10,8 @@
 | 2026-07-10 | push | `371e349` | → `origin/main`，`69894ae..371e349` | 绕开本地 `HTTPS_PROXY`/`HTTP_PROXY` 环境变量后重新推送（`env -u HTTPS_PROXY -u HTTP_PROXY -u https_proxy -u http_proxy git push`），带上前面的merge commit | ✅ 推送成功 |
 | 2026-07-10 | commit | `79e42ea` | `docs/Git操作记录.md`（新建） | 新建本记录文档并写入以上4条历史记录 | ✅ 提交成功 |
 | 2026-07-10 | push | `79e42ea` | → `origin/main`，`371e349..79e42ea` | 推送上述提交（同样绕开代理） | ✅ 推送成功 |
+| 2026-07-16 | tag | `backup-20260716-b0d68a5` | 指向 `b0d68a5` | 用户要求把`main`回退到`0814ff1`（撤销当天`f0c81df`/`6338428`/`d7e471c`/`b0d68a5`四个提交），回退前先给当前完整状态打备份tag，避免丢失。可用`git checkout backup-20260716-b0d68a5`随时找回 | ✅ 创建并推送成功 |
+| 2026-07-16 | revert×4 | `636473b`/`118da82`/`d4f8b87`/`66e6ef7` | `docs/Git操作记录.md`、`LgdEngine.java` | 用`git revert 0814ff1..b0d68a5`按时间倒序依次revert了`b0d68a5`/`d7e471c`/`6338428`/`f0c81df`四个提交（选择revert而非`reset --hard`+强推，因为这4个提交已推送到远程，revert不改写共享历史）。revert后用`git diff 0814ff1 HEAD`核对，代码内容与`0814ff1`完全一致 | ✅ revert成功，无冲突 |
+| 2026-07-16 | push | `66e6ef7` | → `origin/main`，`b0d68a5..66e6ef7` | 推送上述4个revert提交 | ✅ 推送成功 |
+| 2026-07-16 | commit | `fdc856a` | `docs/Git操作记录.md` | 补记回退操作留痕(备份tag+4个revert+push) | ✅ 提交成功 |
+| 2026-07-16 | commit | `1803cc9` | `LgdConfig.tsx` | 用户反馈"LGD参数配置页点新增填完确定没反应"：实测SCH_005是EFFECTIVE状态，后端`checkSchemeDraft()`按设计拒绝了保存(仅DRAFT可改)，但前端"基准曲线"和"押品折扣率"两个Tab的单条新增/编辑(`handleSave`)、单条删除(`handleDelete`)共4处调用保存接口时都没有try/catch，报错被静默吞掉，用户毫无提示。补上try/catch+`message.error`弹出后端具体报错，不改变业务逻辑 | ✅ 提交成功 |

@@ -122,6 +122,61 @@ class EadEngineTest {
     }
 
     @Test
+    void shouldDiscountUsingAssetsOwnInterestRateWhenPresent() {
+        // 借据自己利率(3%)明显低于方案统一折现率(ctxWithFacility里的5%)，
+        // 折出来的表内EAD应该按3%算，不是5%——验证"优先借据自己利率"生效。
+        AssetInput asset = assetWithSchedule("LN_001", "FAC_001");
+        asset.setCalcDate(LocalDate.of(2026, 6, 24));
+        asset.setInterestRate(BigDecimal.valueOf(0.03));
+        asset.setRepaymentSchedules(List.of(
+                schedule(LocalDate.of(2027, 6, 24), 1000, 0)
+        ));
+
+        engine.execute(ctxWithFacility(asset));
+
+        double expected = 1000 / Math.pow(1.03, 1.0);
+        assertEquals(expected, asset.getOnBsEad(), 0.5);
+        assertTrue(asset.getEadBreakdown().contains("\"discountRate\":0.03"));
+    }
+
+    @Test
+    void shouldNormalizePercentageStyleInterestRate() {
+        // 源数据"利率(%)"字段存的是4.85这种百分数写法(不是0.0485)，
+        // 必须先归一化成小数再折现，否则会被当成485%导致EAD被压得极低——
+        // 这是2026-07-17实测UAT-L002时真实出现过的回归，此处锁定防止再犯。
+        AssetInput asset = assetWithSchedule("LN_003", "FAC_001");
+        asset.setCalcDate(LocalDate.of(2026, 6, 24));
+        asset.setInterestRate(BigDecimal.valueOf(4.85));
+        asset.setRepaymentSchedules(List.of(
+                schedule(LocalDate.of(2027, 6, 24), 1000, 0)
+        ));
+
+        engine.execute(ctxWithFacility(asset));
+
+        double expected = 1000 / Math.pow(1.0485, 1.0);
+        assertEquals(expected, asset.getOnBsEad(), 0.5);
+        // 4.85/100.0 在浮点下不是精确的0.0485(是0.048499999999999995)，
+        // 断言用数值容差比对，不做字符串精确匹配
+        assertTrue(asset.getEadBreakdown().contains("\"discountRate\":0.0484"));
+    }
+
+    @Test
+    void shouldFallBackToSchemeDiscountRateWhenAssetHasNoInterestRate() {
+        // 借据没填自己的利率(interestRate=null)，应退回方案统一折现率(5%)，不是0或报错。
+        AssetInput asset = assetWithSchedule("LN_002", "FAC_001");
+        asset.setCalcDate(LocalDate.of(2026, 6, 24));
+        asset.setRepaymentSchedules(List.of(
+                schedule(LocalDate.of(2027, 6, 24), 1000, 0)
+        ));
+
+        engine.execute(ctxWithFacility(asset));
+
+        double expected = 1000 / Math.pow(1.05, 1.0);
+        assertEquals(expected, asset.getOnBsEad(), 0.5);
+        assertTrue(asset.getEadBreakdown().contains("\"discountRate\":0.05"));
+    }
+
+    @Test
     void shouldAllocateFacilityUndrawnAmountByAmtFinancedShare() {
         AssetInput a1 = asset("LN_001", "FAC_001", 600);
         AssetInput a2 = asset("LN_002", "FAC_001", 400);

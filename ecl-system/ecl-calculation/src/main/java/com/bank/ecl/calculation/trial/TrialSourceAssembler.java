@@ -162,6 +162,7 @@ public class TrialSourceAssembler {
         asset.setAmtFinancedCny(loan.getAmtFinancedCny());
         asset.setOutstandingBalance(loan.getLoanBalCny());
         asset.setAccruedInterest(loan.getIntAccruedCny());
+        asset.setInterestRate(loan.getInterestRate());
         asset.setOverduePrincipal(loan.getOverduePrincipal());
         asset.setOverdueInterest(loan.getOverdueInterest());
         asset.setMaturityDate(loan.getLoanMaturityDt());

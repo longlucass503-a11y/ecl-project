@@ -28,6 +28,8 @@ public class LgdCurveBatchReq {
         @NotBlank(message = "collateralType 不能为空")
         private String collateralType;
 
+        private String collateralCategory;
+
         private String productType;
 
         @NotNull(message = "lgdBaseValue 不能为空")

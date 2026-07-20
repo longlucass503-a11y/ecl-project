@@ -104,28 +104,34 @@ const BenchmarkCurveTab: React.FC<{
     const nextCurves = editing
       ? curves.map((curve) =>
           curve.curveId === editing.curveId
-            ? { collateralType: values.collateralType, productType: values.productType || '', lgdBaseValue: +(values.lgdBaseValue / 100).toFixed(6) }
-            : { collateralType: curve.collateralType, productType: curve.productType, lgdBaseValue: curve.lgdBaseValue }
+            ? { collateralType: values.collateralType, collateralCategory: values.collateralCategory || '', productType: values.productType || '', lgdBaseValue: +(values.lgdBaseValue / 100).toFixed(6) }
+            : { collateralType: curve.collateralType, collateralCategory: curve.collateralCategory, productType: curve.productType, lgdBaseValue: curve.lgdBaseValue }
         )
       : [...curves, { ...values, lgdBaseValue: +(values.lgdBaseValue / 100).toFixed(6), schemeId: selectedSchemeId, groupId: selectedGroupId, curveId: `tmp_${Date.now()}` }];
-    await lgdApi.batchSaveCurves(
-      selectedSchemeId,
-      selectedGroupId,
-      nextCurves.map((curve) => ({
-        collateralType: curve.collateralType,
-        productType: curve.productType,
-        lgdBaseValue: curve.lgdBaseValue,
-      })),
-    );
-    if (editing) {
-      message.success('更新成功');
-    } else {
-      message.success('创建成功');
+    try {
+      await lgdApi.batchSaveCurves(
+        selectedSchemeId,
+        selectedGroupId,
+        nextCurves.map((curve) => ({
+          collateralType: curve.collateralType,
+          collateralCategory: curve.collateralCategory,
+          productType: curve.productType,
+          lgdBaseValue: curve.lgdBaseValue,
+        })),
+      );
+      if (editing) {
+        message.success('更新成功');
+      } else {
+        message.success('创建成功');
+      }
+      setModalOpen(false);
+      setEditing(null);
+      form.resetFields();
+      load();
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.message || err?.message || '保存失败';
+      message.error(errMsg);
     }
-    setModalOpen(false);
-    setEditing(null);
-    form.resetFields();
-    load();
   };
 
   const handleDelete = (id: string) => {
@@ -138,17 +144,22 @@ const BenchmarkCurveTab: React.FC<{
           return;
         }
         const nextCurves = curves.filter((curve) => curve.curveId !== id);
-        await lgdApi.batchSaveCurves(
-          selectedSchemeId,
-          selectedGroupId,
-          nextCurves.map((curve) => ({
-            collateralType: curve.collateralType,
-            productType: curve.productType,
-            lgdBaseValue: curve.lgdBaseValue,
-          })),
-        );
-        message.success('已删除');
-        load();
+        try {
+          await lgdApi.batchSaveCurves(
+            selectedSchemeId,
+            selectedGroupId,
+            nextCurves.map((curve) => ({
+              collateralType: curve.collateralType,
+              productType: curve.productType,
+              lgdBaseValue: curve.lgdBaseValue,
+            })),
+          );
+          message.success('已删除');
+          load();
+        } catch (err: any) {
+          const errMsg = err?.response?.data?.message || err?.message || '删除失败';
+          message.error(errMsg);
+        }
       },
     });
   };
@@ -161,6 +172,7 @@ const BenchmarkCurveTab: React.FC<{
     try {
       const payload = curves.map((c) => ({
         collateralType: c.collateralType,
+        collateralCategory: c.collateralCategory,
         productType: c.productType,
         lgdBaseValue: c.lgdBaseValue,
       }));
@@ -173,8 +185,9 @@ const BenchmarkCurveTab: React.FC<{
   };
 
   const columns = [
-    { title: '担保类型', dataIndex: 'collateralType', key: 'collateralType', width: 160 },
     { title: '产品类型', dataIndex: 'productType', key: 'productType', width: 160 },
+    { title: '押品类型', dataIndex: 'collateralType', key: 'collateralType', width: 160 },
+    { title: '押品大类', dataIndex: 'collateralCategory', key: 'collateralCategory', width: 160 },
     {
       title: 'LGD 基准值',
       dataIndex: 'lgdBaseValue',
@@ -237,8 +250,9 @@ const BenchmarkCurveTab: React.FC<{
       <table className="ecl-table">
         <thead>
           <tr>
-            <th>担保类型</th>
             <th>产品类型<br/><span style={{fontSize:10,fontWeight:400,color:'#999'}}>空=全集</span></th>
+            <th>押品类型</th>
+            <th>押品大类<br/><span style={{fontSize:10,fontWeight:400,color:'#999'}}>空=不区分押品</span></th>
             <th>LGD 基准值</th>
             <th style={{ width: 120 }}>操作</th>
           </tr>
@@ -246,8 +260,9 @@ const BenchmarkCurveTab: React.FC<{
         <tbody>
           {curves.map((c) => (
             <tr key={c.curveId}>
-              <td>{c.collateralType}</td>
               <td>{c.productType || <span style={{ color: 'var(--color-text-muted)' }}>全集 *</span>}</td>
+              <td>{c.collateralType}</td>
+              <td>{c.collateralCategory || <span style={{ color: 'var(--color-text-muted)' }}>-</span>}</td>
               <td>{(c.lgdBaseValue * 100).toFixed(4)}%</td>
               <td>
                 <Space>
@@ -260,7 +275,7 @@ const BenchmarkCurveTab: React.FC<{
             </tr>
           ))}
           {curves.length === 0 && (
-            <tr><td colSpan={4}><div className="ecl-empty-row">暂无数据</div></td></tr>
+            <tr><td colSpan={5}><div className="ecl-empty-row">暂无数据</div></td></tr>
           )}
         </tbody>
       </table>
@@ -274,13 +289,17 @@ const BenchmarkCurveTab: React.FC<{
         onCancel={() => { setModalOpen(false); form.resetFields(); }}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="collateralType" label="担保类型" rules={[{ required: true, message: '请选择担保类型' }]}>
-            <Select placeholder="请选择担保类型" allowClear showSearch
-              options={dictCollateral.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
-          </Form.Item>
           <Form.Item name="productType" label="产品类型">
             <Select placeholder="为空=全集（不限制）" allowClear showSearch
               options={dictProductType.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
+          </Form.Item>
+          <Form.Item name="collateralType" label="押品类型" rules={[{ required: true, message: '请选择押品类型' }]}>
+            <Select placeholder="请选择押品类型" allowClear showSearch
+              options={dictCollateral.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
+          </Form.Item>
+          <Form.Item name="collateralCategory" label="押品大类" tooltip="只在算押品覆盖部分LGD时用到；不涉及押品覆盖的行可以留空">
+            <Select placeholder="为空=不区分押品（仅用于资产层级未覆盖部分）" allowClear showSearch
+              options={dictCollateralCategory.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
           </Form.Item>
           <Form.Item name="lgdBaseValue" label="LGD 基准值 (%)" rules={[
             { required: true, message: '请输入 LGD 基准值' },
@@ -358,23 +377,28 @@ const CollateralDiscountTab: React.FC<{
             : { collateralCategory: item.collateralCategory, collateralType: item.collateralType, discountRate: item.discountRate }
         )
       : [...list, { collateralCategory: values.collateralCategory, collateralType: values.collateralType, discountRate: +(values.discountRate / 100).toFixed(4), schemeId: selectedSchemeId, discountId: `tmp_${Date.now()}` }];
-    await lgdApi.batchSaveDiscounts(
-      selectedSchemeId,
-      nextList.map((item) => ({
-        collateralCategory: item.collateralCategory,
-        collateralType: item.collateralType,
-        discountRate: item.discountRate,
-      })),
-    );
-    if (editing) {
-      message.success('更新成功');
-    } else {
-      message.success('创建成功');
+    try {
+      await lgdApi.batchSaveDiscounts(
+        selectedSchemeId,
+        nextList.map((item) => ({
+          collateralCategory: item.collateralCategory,
+          collateralType: item.collateralType,
+          discountRate: item.discountRate,
+        })),
+      );
+      if (editing) {
+        message.success('更新成功');
+      } else {
+        message.success('创建成功');
+      }
+      setModalOpen(false);
+      setEditing(null);
+      form.resetFields();
+      load();
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.message || err?.message || '保存失败';
+      message.error(errMsg);
     }
-    setModalOpen(false);
-    setEditing(null);
-    form.resetFields();
-    load();
   };
 
   const handleDelete = (id: string) => {
@@ -383,16 +407,21 @@ const CollateralDiscountTab: React.FC<{
       content: '确定要删除这条押品折扣率吗？',
       onOk: async () => {
         const nextList = list.filter((item) => item.discountId !== id);
-        await lgdApi.batchSaveDiscounts(
-          selectedSchemeId,
-          nextList.map((item) => ({
-            collateralCategory: item.collateralCategory,
-            collateralType: item.collateralType,
-            discountRate: item.discountRate,
-          })),
-        );
-        message.success('已删除');
-        load();
+        try {
+          await lgdApi.batchSaveDiscounts(
+            selectedSchemeId,
+            nextList.map((item) => ({
+              collateralCategory: item.collateralCategory,
+              collateralType: item.collateralType,
+              discountRate: item.discountRate,
+            })),
+          );
+          message.success('已删除');
+          load();
+        } catch (err: any) {
+          const errMsg = err?.response?.data?.message || err?.message || '删除失败';
+          message.error(errMsg);
+        }
       },
     });
   };
@@ -411,8 +440,8 @@ const CollateralDiscountTab: React.FC<{
   };
 
   const columns = [
-    { title: '押品大类', dataIndex: 'collateralCategory', key: 'collateralCategory', width: 200 },
     { title: '押品类型', dataIndex: 'collateralType', key: 'collateralType', width: 200 },
+    { title: '押品大类', dataIndex: 'collateralCategory', key: 'collateralCategory', width: 200 },
     {
       title: '折扣率',
       dataIndex: 'discountRate',
@@ -442,8 +471,8 @@ const CollateralDiscountTab: React.FC<{
       <table className="ecl-table">
         <thead>
           <tr>
-            <th>押品大类</th>
             <th>押品类型</th>
+            <th>押品大类</th>
             <th>折扣率</th>
             <th style={{ width: 120 }}>操作</th>
           </tr>
@@ -451,8 +480,8 @@ const CollateralDiscountTab: React.FC<{
         <tbody>
           {list.map((d) => (
             <tr key={d.discountId}>
-              <td>{d.collateralCategory}</td>
               <td>{d.collateralType}</td>
+              <td>{d.collateralCategory}</td>
               <td>{(d.discountRate * 100).toFixed(2)}%</td>
               <td>
                 <Space>
@@ -477,13 +506,13 @@ const CollateralDiscountTab: React.FC<{
         onCancel={() => { setModalOpen(false); form.resetFields(); }}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="collateralCategory" label="押品大类" rules={[{ required: true, message: '请选择押品大类' }]}>
-            <Select placeholder="请选择押品大类" allowClear showSearch
-              options={dictCollateralCategory.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
-          </Form.Item>
           <Form.Item name="collateralType" label="押品类型" rules={[{ required: true, message: '请选择押品类型' }]}>
             <Select placeholder="请选择押品类型" allowClear showSearch
               options={dictCollateral.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
+          </Form.Item>
+          <Form.Item name="collateralCategory" label="押品大类" rules={[{ required: true, message: '请选择押品大类' }]}>
+            <Select placeholder="请选择押品大类" allowClear showSearch
+              options={dictCollateralCategory.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))} />
           </Form.Item>
           <Form.Item
             name="discountRate"
@@ -527,6 +556,17 @@ const DepreciationTab: React.FC<{
   const [rows, setRows] = useState<DepreciationMatrixRow[]>([]);
   const [deletedTypes, setDeletedTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [dictCollateralCategory, setDictCollateralCategory] = useState<DictEntryVO[]>([]);
+
+  useEffect(() => {
+    if (!selectedSchemeId) {
+      setDictCollateralCategory([]);
+      return;
+    }
+    dictApi.getEffectiveEntries(selectedSchemeId, 'COLLATERAL_CATEGORY').then((res) => {
+      setDictCollateralCategory((res.data as any)?.data || res.data || []);
+    }).catch((err) => console.error('加载押品大类字典失败', err));
+  }, [selectedSchemeId]);
 
   const loadData = useCallback(async () => {
     if (!selectedSchemeId) {
@@ -638,7 +678,7 @@ const DepreciationTab: React.FC<{
   const handleDeleteRow = (row: DepreciationMatrixRow) => {
     Modal.confirm({
       title: '确认删除',
-      content: '确定要删除该押品类型的折旧率配置吗？',
+      content: '确定要删除该押品大类的折旧率配置吗？',
       onOk: () => {
         const persistedType = row.originalCollateralType || row.collateralType.trim();
         if (persistedType) {
@@ -677,11 +717,11 @@ const DepreciationTab: React.FC<{
   const validateRows = () => {
     const types = rows.map((row) => row.collateralType.trim());
     if (types.some((type) => !type)) {
-      message.error('押品类型不能为空');
+      message.error('押品大类不能为空');
       return null;
     }
     if (new Set(types).size !== types.length) {
-      message.error('押品类型不能重复');
+      message.error('押品大类不能重复');
       return null;
     }
     if (new Set(years).size !== years.length) {
@@ -733,7 +773,7 @@ const DepreciationTab: React.FC<{
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, gap: 8 }}>
         <Button onClick={handleAddYear}>新增年份</Button>
         <Button onClick={handleRemoveYear} disabled={years.length <= 1}>删除末年</Button>
-        <Button icon={<PlusOutlined />} type="primary" onClick={handleAddRow}>新增押品类型</Button>
+        <Button icon={<PlusOutlined />} type="primary" onClick={handleAddRow}>新增押品大类</Button>
         <Button loading={loading} onClick={handleBatchSave}>批量保存</Button>
       </div>
       {rows.length === 0 ? (
@@ -744,7 +784,7 @@ const DepreciationTab: React.FC<{
         <table className="ecl-table">
           <thead>
             <tr>
-              <th style={{ minWidth: 180 }}>押品类型</th>
+              <th style={{ minWidth: 180 }}>押品大类</th>
               {years.map((year, index) => (
                 <th key={`${index}-${year}`} style={{ width: 100 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -769,10 +809,14 @@ const DepreciationTab: React.FC<{
             {rows.map((row) => (
               <tr key={row.rowId}>
                 <td>
-                  <Input
-                    value={row.collateralType}
-                    placeholder="请输入押品类型"
-                    onChange={(event) => handleCollateralTypeChange(row.rowId, event.target.value)}
+                  <Select
+                    value={row.collateralType || undefined}
+                    placeholder="请选择押品大类"
+                    allowClear
+                    showSearch
+                    style={{ width: '100%' }}
+                    options={dictCollateralCategory.map(e => ({ label: `${e.entryName} (${e.entryCode})`, value: e.entryCode }))}
+                    onChange={(value) => handleCollateralTypeChange(row.rowId, value || '')}
                   />
                 </td>
                 {years.map((year) => (

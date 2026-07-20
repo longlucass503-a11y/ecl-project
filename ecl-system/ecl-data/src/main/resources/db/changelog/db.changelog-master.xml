@@ -20,4 +20,5 @@
     <include file="015-add-job-request-payload.sql" relativeToChangelogFile="true"/>
     <include file="016-rename-risk-group-segment.sql" relativeToChangelogFile="true"/>
     <include file="017-add-dict-tables.sql" relativeToChangelogFile="true"/>
+    <include file="018-add-lgd-curve-collateral-category.sql" relativeToChangelogFile="true"/>
 </databaseChangeLog>
